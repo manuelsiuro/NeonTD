@@ -12,6 +12,7 @@ import com.msa.neontd.util.Color
 import com.msa.neontd.util.Rectangle
 import kotlin.math.PI
 import kotlin.math.cos
+import kotlin.math.pow
 import kotlin.math.sin
 
 /**
@@ -83,6 +84,13 @@ class GameHUD(
     private var longPressTouchY: Float = 0f
     private var isShowingTooltip: Boolean = false
     private val longPressThreshold = 0.5f
+
+    // Tower upgrade panel state
+    var isUpgradePanelOpen: Boolean = false
+    private var upgradePanelData: com.msa.neontd.game.entities.TowerUpgradeData? = null
+    private var upgradePanelWorldPos: com.msa.neontd.util.Vector2? = null
+    private var upgradePanelAreas: UpgradePanelAreas? = null
+    private var upgradePanelAnimProgress: Float = 0f
 
     // Transition animation state
     private var transitionAlpha: Float = 1f
@@ -631,6 +639,131 @@ class GameHUD(
                 batch.draw(texture, x + w - thickness, y, thickness, h, color, glow)
                 batch.draw(texture, x, y + h / 2, w, thickness, color, glow)
                 batch.draw(texture, x, y, w, thickness, color, glow)
+            }
+            'S' -> {
+                batch.draw(texture, x, y + h - thickness, w, thickness, color, glow)         // Top
+                batch.draw(texture, x, y + h / 2, thickness, h / 2, color, glow)              // Top-left
+                batch.draw(texture, x, y + h / 2 - thickness / 2, w, thickness, color, glow) // Middle
+                batch.draw(texture, x + w - thickness, y + thickness, thickness, h / 2 - thickness * 1.5f, color, glow) // Bottom-right
+                batch.draw(texture, x, y, w, thickness, color, glow)                          // Bottom
+            }
+            'R' -> {
+                batch.draw(texture, x, y, thickness, h, color, glow)                          // Left
+                batch.draw(texture, x, y + h - thickness, w * 0.8f, thickness, color, glow)  // Top
+                batch.draw(texture, x + w - thickness, y + h / 2, thickness, h / 2 - thickness, color, glow) // Top-right
+                batch.draw(texture, x, y + h / 2, w * 0.8f, thickness, color, glow)          // Middle
+                // Diagonal leg
+                for (i in 0..3) {
+                    val t = i / 3f
+                    batch.draw(texture, x + w * 0.3f + w * 0.7f * t, y + h / 2 * (1 - t) - thickness / 2, thickness * 1.2f, thickness * 1.2f, color, glow)
+                }
+            }
+            'W' -> {
+                batch.draw(texture, x, y, thickness, h, color, glow)                          // Left
+                batch.draw(texture, x + w - thickness, y, thickness, h, color, glow)          // Right
+                batch.draw(texture, x + w / 2 - thickness / 2, y, thickness, h * 0.6f, color, glow) // Center
+                batch.draw(texture, x + w * 0.25f - thickness / 2, y, thickness, h * 0.4f, color, glow) // Left-center
+                batch.draw(texture, x + w * 0.75f - thickness / 2, y, thickness, h * 0.4f, color, glow) // Right-center
+            }
+            'G' -> {
+                batch.draw(texture, x, y + thickness, thickness, h - thickness * 2, color, glow) // Left
+                batch.draw(texture, x, y + h - thickness, w, thickness, color, glow)             // Top
+                batch.draw(texture, x, y, w, thickness, color, glow)                              // Bottom
+                batch.draw(texture, x + w - thickness, y, thickness, h / 2, color, glow)          // Bottom-right
+                batch.draw(texture, x + w / 2, y + h / 2 - thickness / 2, w / 2, thickness, color, glow) // Middle arm
+            }
+            'H' -> {
+                batch.draw(texture, x, y, thickness, h, color, glow)                          // Left
+                batch.draw(texture, x + w - thickness, y, thickness, h, color, glow)          // Right
+                batch.draw(texture, x, y + h / 2 - thickness / 2, w, thickness, color, glow)  // Middle
+            }
+            'F' -> {
+                batch.draw(texture, x, y, thickness, h, color, glow)                          // Left
+                batch.draw(texture, x, y + h - thickness, w, thickness, color, glow)          // Top
+                batch.draw(texture, x, y + h / 2 - thickness / 2, w * 0.7f, thickness, color, glow) // Middle
+            }
+            'V' -> {
+                // Approximated with diagonal lines
+                for (i in 0..4) {
+                    val t = i / 4f
+                    batch.draw(texture, x + w / 2 * t, y + h * (1 - t), thickness, thickness * 1.5f, color, glow)
+                    batch.draw(texture, x + w - w / 2 * t - thickness, y + h * (1 - t), thickness, thickness * 1.5f, color, glow)
+                }
+            }
+            'K' -> {
+                batch.draw(texture, x, y, thickness, h, color, glow) // Left
+                // Upper diagonal
+                for (i in 0..3) {
+                    val t = i / 3f
+                    batch.draw(texture, x + thickness + w * 0.5f * t, y + h / 2 + h / 2 * t - thickness, thickness, thickness * 1.5f, color, glow)
+                }
+                // Lower diagonal
+                for (i in 0..3) {
+                    val t = i / 3f
+                    batch.draw(texture, x + thickness + w * 0.5f * t, y + h / 2 * (1 - t), thickness, thickness * 1.5f, color, glow)
+                }
+            }
+            'B' -> {
+                batch.draw(texture, x, y, thickness, h, color, glow)                          // Left
+                batch.draw(texture, x, y + h - thickness, w * 0.8f, thickness, color, glow)   // Top
+                batch.draw(texture, x, y + h / 2 - thickness / 2, w * 0.7f, thickness, color, glow) // Middle
+                batch.draw(texture, x, y, w * 0.8f, thickness, color, glow)                   // Bottom
+                batch.draw(texture, x + w * 0.8f - thickness, y + h / 2, thickness, h / 2 - thickness, color, glow) // Top-right
+                batch.draw(texture, x + w * 0.8f - thickness, y + thickness, thickness, h / 2 - thickness * 1.5f, color, glow) // Bottom-right
+            }
+            '0' -> {
+                batch.draw(texture, x, y + thickness, thickness, h - thickness * 2, color, glow)
+                batch.draw(texture, x + w - thickness, y + thickness, thickness, h - thickness * 2, color, glow)
+                batch.draw(texture, x, y + h - thickness, w, thickness, color, glow)
+                batch.draw(texture, x, y, w, thickness, color, glow)
+            }
+            '4' -> {
+                batch.draw(texture, x, y + h / 2, thickness, h / 2, color, glow)               // Top-left
+                batch.draw(texture, x, y + h / 2 - thickness / 2, w, thickness, color, glow)   // Middle
+                batch.draw(texture, x + w - thickness, y, thickness, h, color, glow)           // Right
+            }
+            '5' -> {
+                batch.draw(texture, x, y + h - thickness, w, thickness, color, glow)           // Top
+                batch.draw(texture, x, y + h / 2, thickness, h / 2, color, glow)               // Top-left
+                batch.draw(texture, x, y + h / 2 - thickness / 2, w, thickness, color, glow)   // Middle
+                batch.draw(texture, x + w - thickness, y + thickness, thickness, h / 2 - thickness * 1.5f, color, glow) // Bottom-right
+                batch.draw(texture, x, y, w, thickness, color, glow)                           // Bottom
+            }
+            '6' -> {
+                batch.draw(texture, x, y + thickness, thickness, h - thickness * 2, color, glow)
+                batch.draw(texture, x, y + h - thickness, w, thickness, color, glow)
+                batch.draw(texture, x, y + h / 2 - thickness / 2, w, thickness, color, glow)
+                batch.draw(texture, x + w - thickness, y + thickness, thickness, h / 2 - thickness * 1.5f, color, glow)
+                batch.draw(texture, x, y, w, thickness, color, glow)
+            }
+            '7' -> {
+                batch.draw(texture, x, y + h - thickness, w, thickness, color, glow)
+                batch.draw(texture, x + w - thickness, y, thickness, h, color, glow)
+            }
+            '8' -> {
+                batch.draw(texture, x, y + thickness, thickness, h - thickness * 2, color, glow)
+                batch.draw(texture, x + w - thickness, y + thickness, thickness, h - thickness * 2, color, glow)
+                batch.draw(texture, x, y + h - thickness, w, thickness, color, glow)
+                batch.draw(texture, x, y + h / 2 - thickness / 2, w, thickness, color, glow)
+                batch.draw(texture, x, y, w, thickness, color, glow)
+            }
+            '9' -> {
+                batch.draw(texture, x, y + h / 2, thickness, h / 2 - thickness, color, glow)
+                batch.draw(texture, x + w - thickness, y + thickness, thickness, h - thickness * 2, color, glow)
+                batch.draw(texture, x, y + h - thickness, w, thickness, color, glow)
+                batch.draw(texture, x, y + h / 2 - thickness / 2, w, thickness, color, glow)
+                batch.draw(texture, x, y, w, thickness, color, glow)
+            }
+            ':' -> {
+                val dotSize = thickness * 1.2f
+                batch.draw(texture, x + w / 2 - dotSize / 2, y + h * 0.25f, dotSize, dotSize, color, glow)
+                batch.draw(texture, x + w / 2 - dotSize / 2, y + h * 0.65f, dotSize, dotSize, color, glow)
+            }
+            '/' -> {
+                for (i in 0..5) {
+                    val t = i / 5f
+                    batch.draw(texture, x + w * t, y + h * t, thickness, thickness * 1.5f, color, glow)
+                }
             }
         }
     }
@@ -2007,12 +2140,743 @@ class GameHUD(
         return false
     }
 
+    // ============================================
+    // TOWER UPGRADE PANEL
+    // ============================================
+
+    /**
+     * Show the upgrade panel for the selected tower.
+     * @param data Upgrade data from TowerFactory
+     * @param worldPos World position of the tower (for panel positioning)
+     */
+    fun showUpgradePanel(data: com.msa.neontd.game.entities.TowerUpgradeData?, worldPos: com.msa.neontd.util.Vector2?) {
+        val wasAlreadyOpen = isUpgradePanelOpen
+        upgradePanelData = data
+        upgradePanelWorldPos = worldPos
+        isUpgradePanelOpen = data != null
+        // Only animate if panel is opening for the first time (not on upgrade click)
+        if (!wasAlreadyOpen && data != null) {
+            upgradePanelAnimProgress = 0f
+        }
+        if (data == null) {
+            upgradePanelAreas = null
+        }
+    }
+
+    /**
+     * Hide the upgrade panel.
+     */
+    fun hideUpgradePanel() {
+        isUpgradePanelOpen = false
+        upgradePanelData = null
+        upgradePanelWorldPos = null
+        upgradePanelAreas = null
+    }
+
+    /**
+     * Update the upgrade panel data (after an upgrade is applied).
+     */
+    fun updateUpgradePanelData(data: com.msa.neontd.game.entities.TowerUpgradeData?) {
+        upgradePanelData = data
+        if (data == null) {
+            hideUpgradePanel()
+        }
+    }
+
+    /**
+     * Handle touch events on the upgrade panel.
+     * @return The action triggered, or null if touch was outside panel
+     */
+    fun handleUpgradePanelTouch(screenX: Float, screenY: Float): UpgradeAction? {
+        if (!isUpgradePanelOpen) return null
+
+        val areas = upgradePanelAreas ?: return null
+        val touchY = screenHeight - screenY
+
+        // Check close button first
+        if (isPointInRect(screenX, touchY, areas.closeButton)) {
+            return UpgradeAction.CLOSE_PANEL
+        }
+
+        // Check upgrade buttons
+        if (isPointInRect(screenX, touchY, areas.damageButton)) {
+            return UpgradeAction.UPGRADE_DAMAGE
+        }
+        if (isPointInRect(screenX, touchY, areas.rangeButton)) {
+            return UpgradeAction.UPGRADE_RANGE
+        }
+        if (isPointInRect(screenX, touchY, areas.fireRateButton)) {
+            return UpgradeAction.UPGRADE_FIRE_RATE
+        }
+
+        // Check sell button
+        if (isPointInRect(screenX, touchY, areas.sellButton)) {
+            return UpgradeAction.SELL
+        }
+
+        // Check if touch is within panel bounds (consume touch but no action)
+        if (isPointInRect(screenX, touchY, areas.panelBounds)) {
+            return null  // Touch consumed but no specific action
+        }
+
+        // Touch outside panel - close it
+        return UpgradeAction.CLOSE_PANEL
+    }
+
+    /**
+     * Check if upgrade panel is currently visible and should handle touches.
+     */
+    fun isUpgradePanelTouched(screenX: Float, screenY: Float): Boolean {
+        if (!isUpgradePanelOpen) return false
+        val areas = upgradePanelAreas ?: return false
+        val touchY = screenHeight - screenY
+        return isPointInRect(screenX, touchY, areas.panelBounds)
+    }
+
+    private fun isPointInRect(x: Float, y: Float, rect: Rectangle): Boolean {
+        return x >= rect.x && x <= rect.x + rect.width &&
+               y >= rect.y && y <= rect.y + rect.height
+    }
+
+    /**
+     * Render the upgrade panel (call after other HUD elements).
+     * @param screenPosX Screen X position of the tower (after camera transformation)
+     * @param screenPosY Screen Y position of the tower (after camera transformation)
+     */
+    fun renderUpgradePanel(spriteBatch: SpriteBatch, whiteTexture: Texture, screenPosX: Float, screenPosY: Float) {
+        val data = upgradePanelData ?: return
+        if (!isUpgradePanelOpen) return
+
+        // Animate panel appearance
+        upgradePanelAnimProgress = (upgradePanelAnimProgress + 0.08f).coerceAtMost(1f)
+        val animScale = easeOutBack(upgradePanelAnimProgress)
+        val animAlpha = upgradePanelAnimProgress
+
+        // Panel dimensions
+        val panelWidth = 280f * scaleFactor * animScale
+        val panelHeight = 240f * scaleFactor * animScale
+        val rowHeight = 42f * scaleFactor
+        val buttonWidth = 50f * scaleFactor
+        val buttonHeight = 36f * scaleFactor
+        val panelPadding = 12f * scaleFactor
+
+        // Position panel above the tower, centered
+        val panelX = (screenPosX - panelWidth / 2f)
+            .coerceIn(safeInsets.left + padding, screenWidth - panelWidth - safeInsets.right - padding)
+        // Convert screen Y (0 at top) to HUD Y (0 at bottom)
+        val towerHudY = screenHeight - screenPosY
+        var panelY = towerHudY + 60f * scaleFactor
+
+        // If panel would go off top, position below tower
+        if (panelY + panelHeight > screenHeight - barHeight - safeInsets.top - padding) {
+            panelY = towerHudY - panelHeight - 80f * scaleFactor
+        }
+
+        // Clamp to visible area
+        panelY = panelY.coerceIn(
+            towerButtonHeight + safeInsets.bottom + padding + 20f * scaleFactor,
+            screenHeight - panelHeight - barHeight - safeInsets.top - padding
+        )
+
+        // Draw panel background
+        spriteBatch.draw(
+            whiteTexture,
+            panelX, panelY,
+            panelWidth, panelHeight,
+            Color(0.02f, 0.02f, 0.06f, 0.95f * animAlpha),
+            0f
+        )
+
+        // Panel border
+        val borderWidth = 2f * scaleFactor
+        val borderColor = data.towerType.baseColor.copy().also { it.a = 0.8f * animAlpha }
+        spriteBatch.draw(whiteTexture, panelX, panelY + panelHeight - borderWidth, panelWidth, borderWidth, borderColor, 0.6f)
+        spriteBatch.draw(whiteTexture, panelX, panelY, panelWidth, borderWidth, borderColor, 0.6f)
+        spriteBatch.draw(whiteTexture, panelX, panelY, borderWidth, panelHeight, borderColor, 0.6f)
+        spriteBatch.draw(whiteTexture, panelX + panelWidth - borderWidth, panelY, borderWidth, panelHeight, borderColor, 0.6f)
+
+        // === HEADER: Tower name + Level ===
+        val headerY = panelY + panelHeight - panelPadding - 28f * scaleFactor
+        val levelText = "LV ${data.currentLevel}/${data.maxLevel}"
+        val maxText = if (!data.canUpgrade) " MAX" else ""
+
+        // Tower name
+        renderSimpleText(spriteBatch, whiteTexture, data.towerType.displayName.uppercase(),
+            panelX + panelPadding, headerY,
+            8f * scaleFactor, 12f * scaleFactor,
+            data.towerType.baseColor.copy().also { it.a = animAlpha }, 0.7f)
+
+        // Level indicator
+        val levelColor = when {
+            data.currentLevel >= 10 -> Color.NEON_CYAN.copy()
+            data.currentLevel >= 7 -> Color.NEON_YELLOW.copy()
+            data.currentLevel >= 4 -> Color(0.75f, 0.75f, 0.8f, 1f)  // Silver
+            else -> Color(0.8f, 0.5f, 0.2f, 1f)  // Bronze
+        }
+        levelColor.a = animAlpha
+        renderSimpleText(spriteBatch, whiteTexture, levelText + maxText,
+            panelX + panelWidth - panelPadding - (levelText.length + maxText.length) * 9f * scaleFactor, headerY,
+            8f * scaleFactor, 12f * scaleFactor,
+            levelColor, 0.7f)
+
+        // Separator line
+        val sepY = headerY - 8f * scaleFactor
+        spriteBatch.draw(whiteTexture, panelX + panelPadding, sepY, panelWidth - panelPadding * 2, 1f * scaleFactor, borderColor.also { it.a = 0.4f * animAlpha }, 0.3f)
+
+        // === UPGRADE ROWS ===
+        val contentY = sepY - 12f * scaleFactor
+
+        // Damage row
+        val dmgY = contentY - rowHeight
+        val dmgBtnArea = renderUpgradeRow(spriteBatch, whiteTexture, panelX, dmgY, panelWidth, rowHeight, buttonWidth, buttonHeight, panelPadding,
+            "DMG", data.currentDamage, data.previewDamage, data.damagePoints,
+            Color.NEON_ORANGE.copy(), data.canUpgrade && gold >= data.upgradeCost, data.upgradeCost, animAlpha)
+
+        // Range row
+        val rngY = dmgY - rowHeight - 4f * scaleFactor
+        val rngBtnArea = renderUpgradeRow(spriteBatch, whiteTexture, panelX, rngY, panelWidth, rowHeight, buttonWidth, buttonHeight, panelPadding,
+            "RNG", data.currentRange, data.previewRange, data.rangePoints,
+            Color.NEON_CYAN.copy(), data.canUpgrade && gold >= data.upgradeCost, data.upgradeCost, animAlpha)
+
+        // Fire rate row
+        val spdY = rngY - rowHeight - 4f * scaleFactor
+        val spdBtnArea = renderUpgradeRow(spriteBatch, whiteTexture, panelX, spdY, panelWidth, rowHeight, buttonWidth, buttonHeight, panelPadding,
+            "SPD", data.currentFireRate, data.previewFireRate, data.fireRatePoints,
+            Color.NEON_YELLOW.copy(), data.canUpgrade && gold >= data.upgradeCost, data.upgradeCost, animAlpha)
+
+        // === SELL BUTTON ===
+        val sellBtnWidth = panelWidth - panelPadding * 2
+        val sellBtnHeight = 38f * scaleFactor
+        val sellBtnX = panelX + panelPadding
+        val sellBtnY = panelY + panelPadding
+
+        // Sell button background
+        val sellColor = Color.NEON_MAGENTA.copy()
+        spriteBatch.draw(whiteTexture, sellBtnX, sellBtnY, sellBtnWidth, sellBtnHeight,
+            sellColor.copy().also { it.a = 0.15f * animAlpha }, 0.3f)
+        // Sell button border
+        val sellBorderW = 2f * scaleFactor
+        spriteBatch.draw(whiteTexture, sellBtnX, sellBtnY + sellBtnHeight - sellBorderW, sellBtnWidth, sellBorderW, sellColor.also { it.a = 0.8f * animAlpha }, 0.5f)
+        spriteBatch.draw(whiteTexture, sellBtnX, sellBtnY, sellBtnWidth, sellBorderW, sellColor, 0.5f)
+        spriteBatch.draw(whiteTexture, sellBtnX, sellBtnY, sellBorderW, sellBtnHeight, sellColor, 0.5f)
+        spriteBatch.draw(whiteTexture, sellBtnX + sellBtnWidth - sellBorderW, sellBtnY, sellBorderW, sellBtnHeight, sellColor, 0.5f)
+
+        // Sell text and value
+        renderSimpleText(spriteBatch, whiteTexture, "SELL: ${data.sellValue}",
+            sellBtnX + (sellBtnWidth - "SELL: ${data.sellValue}".length * 9f * scaleFactor) / 2f,
+            sellBtnY + (sellBtnHeight - 12f * scaleFactor) / 2f,
+            8f * scaleFactor, 12f * scaleFactor,
+            sellColor.also { it.a = animAlpha }, 0.7f)
+
+        // === CLOSE BUTTON (X in top-right corner) ===
+        val closeBtnSize = 24f * scaleFactor
+        val closeBtnX = panelX + panelWidth - closeBtnSize - panelPadding / 2f
+        val closeBtnY = panelY + panelHeight - closeBtnSize - panelPadding / 2f
+        renderCloseButton(spriteBatch, whiteTexture, closeBtnX, closeBtnY, closeBtnSize, animAlpha)
+
+        // Store touch areas
+        upgradePanelAreas = UpgradePanelAreas(
+            panelBounds = Rectangle(panelX, panelY, panelWidth, panelHeight),
+            damageButton = dmgBtnArea,
+            rangeButton = rngBtnArea,
+            fireRateButton = spdBtnArea,
+            sellButton = Rectangle(sellBtnX, sellBtnY, sellBtnWidth, sellBtnHeight),
+            closeButton = Rectangle(closeBtnX, closeBtnY, closeBtnSize, closeBtnSize)
+        )
+    }
+
+    /**
+     * Render the upgrade panel as a corner card in the top-right of the screen.
+     * This position never covers the tower or its range circle.
+     */
+    fun renderCornerUpgradePanel(spriteBatch: SpriteBatch, whiteTexture: Texture) {
+        val data = upgradePanelData ?: return
+        if (!isUpgradePanelOpen) return
+
+        // Animate panel appearance (slide from right edge)
+        upgradePanelAnimProgress = (upgradePanelAnimProgress + 0.04f).coerceAtMost(1f)  // ~250ms
+        val animProgress = easeOutBack(upgradePanelAnimProgress)
+        val animAlpha = upgradePanelAnimProgress
+
+        // Wider panel dimensions for better readability
+        val panelWidth = 260f * scaleFactor
+        val panelHeight = 280f * scaleFactor
+        val rowHeight = 48f * scaleFactor
+        val buttonWidth = 52f * scaleFactor
+        val buttonHeight = 38f * scaleFactor
+        val panelPadding = 12f * scaleFactor
+
+        // Corner positioning constants
+        val cornerMarginX = 16f * scaleFactor
+        val cornerMarginY = 8f * scaleFactor
+
+        // Calculate target position (top-right corner, below top bar)
+        val targetPanelX = screenWidth - panelWidth - safeInsets.right - cornerMarginX
+        val targetPanelY = screenHeight - barHeight - safeInsets.top - panelHeight - cornerMarginY
+
+        // Apply slide-in animation (from right edge)
+        val slideOffset = (1f - animProgress) * (panelWidth + cornerMarginX + safeInsets.right)
+        val panelX = targetPanelX + slideOffset
+        val panelY = targetPanelY.coerceIn(
+            towerButtonHeight + safeInsets.bottom + 20f * scaleFactor,
+            screenHeight - panelHeight - barHeight - safeInsets.top - cornerMarginY
+        )
+
+        // Draw panel background
+        spriteBatch.draw(
+            whiteTexture,
+            panelX, panelY,
+            panelWidth, panelHeight,
+            Color(0.02f, 0.02f, 0.06f, 0.95f * animAlpha),
+            0f
+        )
+
+        // Panel border with tower color
+        val borderWidth = 2f * scaleFactor
+        val borderColor = data.towerType.baseColor.copy().also { it.a = 0.8f * animAlpha }
+        spriteBatch.draw(whiteTexture, panelX, panelY + panelHeight - borderWidth, panelWidth, borderWidth, borderColor, 0.6f)
+        spriteBatch.draw(whiteTexture, panelX, panelY, panelWidth, borderWidth, borderColor, 0.6f)
+        spriteBatch.draw(whiteTexture, panelX, panelY, borderWidth, panelHeight, borderColor, 0.6f)
+        spriteBatch.draw(whiteTexture, panelX + panelWidth - borderWidth, panelY, borderWidth, panelHeight, borderColor, 0.6f)
+
+        // === HEADER: Tower icon + name + Level ===
+        val headerHeight = 36f * scaleFactor
+        val headerY = panelY + panelHeight - panelPadding - headerHeight
+
+        // Tower shape icon
+        val iconSize = 20f * scaleFactor
+        val iconX = panelX + panelPadding
+        val iconY = headerY + (headerHeight - iconSize) / 2f
+        renderTowerShapeIcon(spriteBatch, whiteTexture, data.towerType, iconX, iconY, iconSize, animAlpha)
+
+        // Tower name (FULL name, no truncation)
+        val towerName = data.towerType.displayName.uppercase()
+        val nameCharWidth = 8f * scaleFactor
+        val nameCharHeight = 12f * scaleFactor
+        renderSimpleText(spriteBatch, whiteTexture, towerName,
+            iconX + iconSize + 8f * scaleFactor, headerY + (headerHeight - nameCharHeight) / 2f,
+            nameCharWidth, nameCharHeight,
+            data.towerType.baseColor.copy().also { it.a = animAlpha }, 0.7f)
+
+        // Level indicator (right side, with proper width calculation)
+        val levelText = if (data.canUpgrade) "LV${data.currentLevel}/10" else "MAX"
+        val levelColor = when {
+            data.currentLevel >= 10 -> Color.NEON_CYAN.copy()
+            data.currentLevel >= 7 -> Color.NEON_YELLOW.copy()
+            data.currentLevel >= 4 -> Color(0.75f, 0.75f, 0.8f, 1f)
+            else -> Color(0.8f, 0.5f, 0.2f, 1f)
+        }
+        levelColor.a = animAlpha
+        val levelCharWidth = 7f * scaleFactor
+        val levelCharHeight = 11f * scaleFactor
+        val levelWidth = calculateTextWidth(levelText, levelCharWidth)
+        renderSimpleText(spriteBatch, whiteTexture, levelText,
+            panelX + panelWidth - panelPadding - levelWidth - 28f * scaleFactor,
+            headerY + (headerHeight - levelCharHeight) / 2f,
+            levelCharWidth, levelCharHeight, levelColor, 0.7f)
+
+        // Separator line
+        val sepY = headerY - 4f * scaleFactor
+        spriteBatch.draw(whiteTexture, panelX + panelPadding, sepY,
+            panelWidth - panelPadding * 2, 1f * scaleFactor,
+            borderColor.copy().also { it.a = 0.4f * animAlpha }, 0.3f)
+
+        // === COMPACT UPGRADE ROWS ===
+        val contentY = sepY - 8f * scaleFactor
+
+        // Damage row
+        val dmgY = contentY - rowHeight
+        val dmgBtnArea = renderCompactUpgradeRow(spriteBatch, whiteTexture, panelX, dmgY,
+            panelWidth, rowHeight, buttonWidth, buttonHeight, panelPadding,
+            "DMG", data.currentDamage, data.damagePoints,
+            Color.NEON_ORANGE.copy(), data.canUpgrade && gold >= data.upgradeCost, animAlpha,
+            data.upgradeCost)
+
+        // Range row
+        val rngY = dmgY - rowHeight - 2f * scaleFactor
+        val rngBtnArea = renderCompactUpgradeRow(spriteBatch, whiteTexture, panelX, rngY,
+            panelWidth, rowHeight, buttonWidth, buttonHeight, panelPadding,
+            "RNG", data.currentRange, data.rangePoints,
+            Color.NEON_CYAN.copy(), data.canUpgrade && gold >= data.upgradeCost, animAlpha,
+            data.upgradeCost)
+
+        // Fire rate row
+        val spdY = rngY - rowHeight - 2f * scaleFactor
+        val spdBtnArea = renderCompactUpgradeRow(spriteBatch, whiteTexture, panelX, spdY,
+            panelWidth, rowHeight, buttonWidth, buttonHeight, panelPadding,
+            "SPD", data.currentFireRate, data.fireRatePoints,
+            Color.NEON_YELLOW.copy(), data.canUpgrade && gold >= data.upgradeCost, animAlpha,
+            data.upgradeCost)
+
+        // === SELL BUTTON ===
+        val sellBtnWidth = panelWidth - panelPadding * 2
+        val sellBtnHeight = 36f * scaleFactor
+        val sellBtnX = panelX + panelPadding
+        val sellBtnY = panelY + panelPadding
+
+        // Sell button background
+        val sellColor = Color.NEON_MAGENTA.copy()
+        spriteBatch.draw(whiteTexture, sellBtnX, sellBtnY, sellBtnWidth, sellBtnHeight,
+            sellColor.copy().also { it.a = 0.15f * animAlpha }, 0.3f)
+        // Sell button border
+        val sellBorderW = 2f * scaleFactor
+        spriteBatch.draw(whiteTexture, sellBtnX, sellBtnY + sellBtnHeight - sellBorderW, sellBtnWidth, sellBorderW, sellColor.copy().also { it.a = 0.8f * animAlpha }, 0.5f)
+        spriteBatch.draw(whiteTexture, sellBtnX, sellBtnY, sellBtnWidth, sellBorderW, sellColor.copy().also { it.a = 0.8f * animAlpha }, 0.5f)
+        spriteBatch.draw(whiteTexture, sellBtnX, sellBtnY, sellBorderW, sellBtnHeight, sellColor.copy().also { it.a = 0.8f * animAlpha }, 0.5f)
+        spriteBatch.draw(whiteTexture, sellBtnX + sellBtnWidth - sellBorderW, sellBtnY, sellBorderW, sellBtnHeight, sellColor.copy().also { it.a = 0.8f * animAlpha }, 0.5f)
+
+        // Sell text (larger, properly centered)
+        val sellText = "SELL ${data.sellValue}G"
+        val sellCharWidth = 9f * scaleFactor
+        val sellCharHeight = 14f * scaleFactor
+        val sellTextWidth = calculateTextWidth(sellText, sellCharWidth)
+        renderSimpleText(spriteBatch, whiteTexture, sellText,
+            sellBtnX + (sellBtnWidth - sellTextWidth) / 2f,
+            sellBtnY + (sellBtnHeight - sellCharHeight) / 2f,
+            sellCharWidth, sellCharHeight,
+            sellColor.copy().also { it.a = animAlpha }, 0.7f)
+
+        // === CLOSE BUTTON (X in top-right corner) ===
+        val closeBtnSize = 22f * scaleFactor
+        val closeBtnX = panelX + panelWidth - closeBtnSize - panelPadding / 2f
+        val closeBtnY = panelY + panelHeight - closeBtnSize - panelPadding / 2f
+        renderCloseButton(spriteBatch, whiteTexture, closeBtnX, closeBtnY, closeBtnSize, animAlpha)
+
+        // Store touch areas (with touch padding for close button)
+        val touchPadding = 8f * scaleFactor
+        upgradePanelAreas = UpgradePanelAreas(
+            panelBounds = Rectangle(panelX, panelY, panelWidth, panelHeight),
+            damageButton = dmgBtnArea,
+            rangeButton = rngBtnArea,
+            fireRateButton = spdBtnArea,
+            sellButton = Rectangle(sellBtnX, sellBtnY, sellBtnWidth, sellBtnHeight),
+            closeButton = Rectangle(
+                closeBtnX - touchPadding,
+                closeBtnY - touchPadding,
+                closeBtnSize + touchPadding * 2,
+                closeBtnSize + touchPadding * 2
+            )
+        )
+    }
+
+    /**
+     * Render a compact upgrade row for the corner panel.
+     * Shows: LABEL [segmented bar] value COST [+]
+     */
+    private fun renderCompactUpgradeRow(
+        spriteBatch: SpriteBatch,
+        whiteTexture: Texture,
+        panelX: Float,
+        rowY: Float,
+        panelWidth: Float,
+        rowHeight: Float,
+        buttonWidth: Float,
+        buttonHeight: Float,
+        padding: Float,
+        statLabel: String,
+        currentValue: Float,
+        points: Int,
+        color: Color,
+        canAfford: Boolean,
+        alpha: Float,
+        upgradeCost: Int
+    ): Rectangle {
+        val textColor = color.copy().also { it.a = alpha }
+
+        // Stat label (larger, more readable)
+        val labelCharWidth = 9f * scaleFactor
+        val labelCharHeight = 14f * scaleFactor
+        renderSimpleText(spriteBatch, whiteTexture, statLabel,
+            panelX + padding, rowY + (rowHeight - labelCharHeight) / 2f,
+            labelCharWidth, labelCharHeight, textColor, 0.6f)
+
+        // Upgrade button [+] - position first so we can layout from right
+        val btnX = panelX + panelWidth - padding - buttonWidth
+        val btnY = rowY + (rowHeight - buttonHeight) / 2f
+
+        // Upgrade cost text (between progress bar and button)
+        var costEndX = btnX - 8f * scaleFactor
+        if (upgradeCost < Int.MAX_VALUE) {
+            val costText = "${upgradeCost}G"
+            val costCharWidth = 7f * scaleFactor
+            val costCharHeight = 11f * scaleFactor
+            val costTextWidth = calculateTextWidth(costText, costCharWidth)
+            val costX = btnX - costTextWidth - 10f * scaleFactor
+            costEndX = costX - 8f * scaleFactor
+            val costColor = if (canAfford) Color.NEON_YELLOW.copy() else Color(0.5f, 0.5f, 0.5f, 1f)
+            costColor.a = alpha
+            renderSimpleText(spriteBatch, whiteTexture, costText,
+                costX, rowY + (rowHeight - costCharHeight) / 2f,
+                costCharWidth, costCharHeight, costColor, if (canAfford) 0.5f else 0f)
+        }
+
+        // Segmented progress bar (sized to fit available space)
+        val progressBarX = panelX + padding + 40f * scaleFactor
+        val progressBarWidth = (costEndX - progressBarX).coerceAtLeast(60f * scaleFactor)
+        val progressBarHeight = 14f * scaleFactor
+        val progressBarY = rowY + (rowHeight - progressBarHeight) / 2f
+        renderSegmentedProgressBar(
+            spriteBatch, whiteTexture,
+            progressBarX, progressBarY,
+            progressBarWidth, progressBarHeight,
+            points,       // filledCount (0-9)
+            9,            // maxCount (9 upgrade levels)
+            color,
+            alpha
+        )
+
+        // Button background
+        val btnBgColor = if (canAfford) color.copy().also { it.a = 0.2f * alpha } else Color(0.2f, 0.2f, 0.2f, 0.3f * alpha)
+        spriteBatch.draw(whiteTexture, btnX, btnY, buttonWidth, buttonHeight, btnBgColor, if (canAfford) 0.3f else 0f)
+
+        // Button border
+        val btnBorder = 1.5f * scaleFactor
+        val btnBorderColor = if (canAfford) color.copy().also { it.a = 0.8f * alpha } else Color(0.4f, 0.4f, 0.4f, 0.5f * alpha)
+        spriteBatch.draw(whiteTexture, btnX, btnY + buttonHeight - btnBorder, buttonWidth, btnBorder, btnBorderColor, if (canAfford) 0.5f else 0f)
+        spriteBatch.draw(whiteTexture, btnX, btnY, buttonWidth, btnBorder, btnBorderColor, if (canAfford) 0.5f else 0f)
+        spriteBatch.draw(whiteTexture, btnX, btnY, btnBorder, buttonHeight, btnBorderColor, if (canAfford) 0.5f else 0f)
+        spriteBatch.draw(whiteTexture, btnX + buttonWidth - btnBorder, btnY, btnBorder, buttonHeight, btnBorderColor, if (canAfford) 0.5f else 0f)
+
+        // Plus sign
+        val plusColor = if (canAfford) color.copy().also { it.a = alpha } else Color(0.5f, 0.5f, 0.5f, 0.5f * alpha)
+        val plusSize = 12f * scaleFactor
+        val plusThick = 2.5f * scaleFactor
+        val plusX = btnX + (buttonWidth - plusSize) / 2f
+        val plusY = btnY + (buttonHeight - plusSize) / 2f
+        // Horizontal bar
+        spriteBatch.draw(whiteTexture, plusX, plusY + (plusSize - plusThick) / 2f, plusSize, plusThick, plusColor, if (canAfford) 0.6f else 0f)
+        // Vertical bar
+        spriteBatch.draw(whiteTexture, plusX + (plusSize - plusThick) / 2f, plusY, plusThick, plusSize, plusColor, if (canAfford) 0.6f else 0f)
+
+        return Rectangle(btnX, btnY, buttonWidth, buttonHeight)
+    }
+
+    /**
+     * Render a small tower shape icon.
+     */
+    private fun renderTowerShapeIcon(
+        spriteBatch: SpriteBatch,
+        whiteTexture: Texture,
+        towerType: TowerType,
+        x: Float,
+        y: Float,
+        size: Float,
+        alpha: Float
+    ) {
+        val color = towerType.baseColor.copy().also { it.a = alpha }
+        val glow = 0.5f
+        // Draw simple square with tower color (representing tower icon)
+        spriteBatch.draw(whiteTexture, x, y, size, size, color, glow)
+        // Border
+        val borderW = 1f * scaleFactor
+        val borderColor = color.copy().also { it.a = alpha * 0.8f }
+        spriteBatch.draw(whiteTexture, x, y + size - borderW, size, borderW, borderColor, glow)
+        spriteBatch.draw(whiteTexture, x, y, size, borderW, borderColor, glow)
+        spriteBatch.draw(whiteTexture, x, y, borderW, size, borderColor, glow)
+        spriteBatch.draw(whiteTexture, x + size - borderW, y, borderW, size, borderColor, glow)
+    }
+
+    /**
+     * Render a single upgrade row with stat info and upgrade button.
+     * @return Rectangle for the upgrade button touch area
+     */
+    private fun renderUpgradeRow(
+        spriteBatch: SpriteBatch,
+        whiteTexture: Texture,
+        panelX: Float,
+        rowY: Float,
+        panelWidth: Float,
+        rowHeight: Float,
+        buttonWidth: Float,
+        buttonHeight: Float,
+        padding: Float,
+        statLabel: String,
+        currentValue: Float,
+        previewValue: Float,
+        points: Int,
+        color: Color,
+        canAfford: Boolean,
+        cost: Int,
+        alpha: Float
+    ): Rectangle {
+        val textColor = color.copy().also { it.a = alpha }
+        val dimColor = color.copy().also { it.a = alpha * 0.5f }
+
+        // Stat label
+        renderSimpleText(spriteBatch, whiteTexture, statLabel,
+            panelX + padding, rowY + (rowHeight - 12f * scaleFactor) / 2f,
+            8f * scaleFactor, 12f * scaleFactor, textColor, 0.6f)
+
+        // Points indicator (dots)
+        val dotSize = 4f * scaleFactor
+        val dotSpacing = 6f * scaleFactor
+        val dotsX = panelX + padding + 40f * scaleFactor
+        val dotsY = rowY + (rowHeight - dotSize) / 2f
+        for (i in 0 until 9) {
+            val dotColor = if (i < points) color.copy() else Color(0.3f, 0.3f, 0.3f, 0.5f)
+            dotColor.a *= alpha
+            spriteBatch.draw(whiteTexture, dotsX + i * dotSpacing, dotsY, dotSize, dotSize, dotColor, if (i < points) 0.4f else 0f)
+        }
+
+        // Current -> Preview values
+        val valuesX = dotsX + 9 * dotSpacing + 10f * scaleFactor
+        val currentStr = formatStatValue(currentValue)
+        val previewStr = formatStatValue(previewValue)
+        val valueY = rowY + (rowHeight - 10f * scaleFactor) / 2f
+
+        renderSimpleText(spriteBatch, whiteTexture, currentStr,
+            valuesX, valueY, 6f * scaleFactor, 10f * scaleFactor, textColor, 0.5f)
+
+        if (canAfford && previewValue != currentValue) {
+            renderSimpleText(spriteBatch, whiteTexture, "->",
+                valuesX + currentStr.length * 7f * scaleFactor + 4f * scaleFactor, valueY,
+                6f * scaleFactor, 10f * scaleFactor, dimColor, 0.3f)
+            renderSimpleText(spriteBatch, whiteTexture, previewStr,
+                valuesX + currentStr.length * 7f * scaleFactor + 24f * scaleFactor, valueY,
+                6f * scaleFactor, 10f * scaleFactor, Color.NEON_GREEN.copy().also { it.a = alpha }, 0.6f)
+        }
+
+        // Upgrade button
+        val btnX = panelX + panelWidth - padding - buttonWidth
+        val btnY = rowY + (rowHeight - buttonHeight) / 2f
+        val btnColor = if (canAfford) color.copy() else Color(0.3f, 0.3f, 0.3f, 0.8f)
+        btnColor.a *= alpha
+
+        // Button background
+        spriteBatch.draw(whiteTexture, btnX, btnY, buttonWidth, buttonHeight,
+            btnColor.copy().also { it.a = 0.2f * alpha }, if (canAfford) 0.3f else 0f)
+
+        // Button border
+        val btnBorder = 2f * scaleFactor
+        spriteBatch.draw(whiteTexture, btnX, btnY + buttonHeight - btnBorder, buttonWidth, btnBorder, btnColor.also { it.a = 0.8f * alpha }, 0.4f)
+        spriteBatch.draw(whiteTexture, btnX, btnY, buttonWidth, btnBorder, btnColor, 0.4f)
+        spriteBatch.draw(whiteTexture, btnX, btnY, btnBorder, buttonHeight, btnColor, 0.4f)
+        spriteBatch.draw(whiteTexture, btnX + buttonWidth - btnBorder, btnY, btnBorder, buttonHeight, btnColor, 0.4f)
+
+        // Button text (+ or cost)
+        val btnText = if (canAfford) "+" else "---"
+        val btnTextColor = if (canAfford) Color.WHITE.copy() else Color(0.5f, 0.5f, 0.5f, 1f)
+        btnTextColor.a *= alpha
+        renderSimpleText(spriteBatch, whiteTexture, btnText,
+            btnX + (buttonWidth - btnText.length * 8f * scaleFactor) / 2f,
+            btnY + (buttonHeight - 10f * scaleFactor) / 2f,
+            7f * scaleFactor, 10f * scaleFactor, btnTextColor, 0.5f)
+
+        return Rectangle(btnX, btnY, buttonWidth, buttonHeight)
+    }
+
+    private fun formatStatValue(value: Float): String {
+        return if (value >= 100) {
+            value.toInt().toString()
+        } else if (value >= 10) {
+            String.format("%.1f", value)
+        } else {
+            String.format("%.2f", value)
+        }
+    }
+
+    private fun renderCloseButton(spriteBatch: SpriteBatch, whiteTexture: Texture, x: Float, y: Float, size: Float, alpha: Float) {
+        val color = Color.NEON_MAGENTA.copy().also { it.a = alpha * 0.8f }
+        val thickness = size * 0.15f
+
+        // Draw X shape
+        val steps = 6
+        for (i in 0..steps) {
+            val t = i.toFloat() / steps
+            // Diagonal 1 (bottom-left to top-right)
+            spriteBatch.draw(whiteTexture,
+                x + size * t - thickness / 2f,
+                y + size * t - thickness / 2f,
+                thickness, thickness, color, 0.5f)
+            // Diagonal 2 (top-left to bottom-right)
+            spriteBatch.draw(whiteTexture,
+                x + size * t - thickness / 2f,
+                y + size * (1 - t) - thickness / 2f,
+                thickness, thickness, color, 0.5f)
+        }
+    }
+
+    private fun renderSimpleText(batch: SpriteBatch, texture: Texture, text: String, x: Float, y: Float, charWidth: Float, charHeight: Float, color: Color, glow: Float) {
+        var currentX = x
+        val spacing = charWidth * 0.15f
+
+        for (char in text) {
+            if (char != ' ') {
+                renderChar(batch, texture, char, currentX, y, charWidth, charHeight, color)
+            }
+            currentX += charWidth + spacing
+        }
+    }
+
+    /**
+     * Calculate the actual rendered width of text, accounting for character spacing.
+     */
+    private fun calculateTextWidth(text: String, charWidth: Float): Float {
+        val spacing = charWidth * 0.15f
+        return if (text.isEmpty()) 0f else text.length * charWidth + (text.length - 1) * spacing
+    }
+
+    /**
+     * Render a segmented progress bar (Zelda-style blocks).
+     */
+    private fun renderSegmentedProgressBar(
+        batch: SpriteBatch,
+        texture: Texture,
+        x: Float,
+        y: Float,
+        width: Float,
+        height: Float,
+        filledCount: Int,
+        maxCount: Int,
+        fillColor: Color,
+        alpha: Float
+    ) {
+        val segmentCount = maxCount.coerceIn(1, 10)
+        val gap = 2f * scaleFactor
+        val segmentWidth = (width - (segmentCount - 1) * gap) / segmentCount
+
+        for (i in 0 until segmentCount) {
+            val segX = x + i * (segmentWidth + gap)
+            val isFilled = i < filledCount
+
+            // Background (always visible for structure)
+            val bgColor = Color(0.15f, 0.15f, 0.2f, 0.7f * alpha)
+            batch.draw(texture, segX, y, segmentWidth, height, bgColor, 0f)
+
+            if (isFilled) {
+                // Filled segment with glow (inset by 1px for border effect)
+                val fillAlpha = fillColor.copy().also { it.a = alpha }
+                batch.draw(texture, segX + 1f * scaleFactor, y + 1f * scaleFactor,
+                    segmentWidth - 2f * scaleFactor, height - 2f * scaleFactor, fillAlpha, 0.5f)
+            }
+
+            // Border
+            val borderColor = if (isFilled) fillColor.copy().also { it.a = 0.7f * alpha }
+            else Color(0.3f, 0.3f, 0.35f, 0.5f * alpha)
+            val bw = 1f * scaleFactor
+            batch.draw(texture, segX, y + height - bw, segmentWidth, bw, borderColor, 0f)
+            batch.draw(texture, segX, y, segmentWidth, bw, borderColor, 0f)
+            batch.draw(texture, segX, y, bw, height, borderColor, 0f)
+            batch.draw(texture, segX + segmentWidth - bw, y, bw, height, borderColor, 0f)
+        }
+    }
+
+    private fun easeOutBack(t: Float): Float {
+        val c1 = 1.70158f
+        val c3 = c1 + 1f
+        return 1f + c3 * (t - 1).toDouble().pow(3.0).toFloat() + c1 * (t - 1).toDouble().pow(2.0).toFloat()
+    }
+
     fun reset() {
         isGameOver = false
         isVictory = false
         isPaused = false
         isEncyclopediaOpen = false
         isOptionsMenuOpen = false
+        isUpgradePanelOpen = false
+        upgradePanelData = null
+        upgradePanelWorldPos = null
+        upgradePanelAreas = null
         gameOverTimer = 0f
         gold = 100
         health = 20
@@ -2036,4 +2900,27 @@ class GameHUD(
         val costY: Float,           // Y position for cost number display
         val iconAreaHeight: Float   // Height available for tower icon (above cost)
     )
+
+    /**
+     * Touch areas for the upgrade panel buttons.
+     */
+    private data class UpgradePanelAreas(
+        val panelBounds: Rectangle,
+        val damageButton: Rectangle,
+        val rangeButton: Rectangle,
+        val fireRateButton: Rectangle,
+        val sellButton: Rectangle,
+        val closeButton: Rectangle
+    )
+}
+
+/**
+ * Actions that can be triggered from the upgrade panel.
+ */
+enum class UpgradeAction {
+    UPGRADE_DAMAGE,
+    UPGRADE_RANGE,
+    UPGRADE_FIRE_RATE,
+    SELL,
+    CLOSE_PANEL
 }

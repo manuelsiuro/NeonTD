@@ -76,6 +76,12 @@ class GameWorld(
     private var waveStartDelay: Float = 0f
     private val WAVE_START_DELAY: Float = 2f  // Seconds between waves
 
+    // Tower upgrade panel state
+    var selectedTowerEntity: Entity? = null
+        private set
+    var isUpgradePanelOpen: Boolean = false
+        private set
+
     // Victory configuration - use level definition for total waves
     private val TOTAL_WAVES: Int
         get() = levelDefinition.totalWaves
@@ -112,6 +118,7 @@ class GameWorld(
     var onWaveChanged: ((Int, WaveState) -> Unit)? = null
     var onGameOver: (() -> Unit)? = null
     var onVictory: (() -> Unit)? = null
+    var onUpgradePanelChanged: ((TowerUpgradeData?) -> Unit)? = null
 
     fun initialize() {
         Log.d(TAG, "Initializing GameWorld")
@@ -313,9 +320,22 @@ class GameWorld(
         if (!wasSelected) {
             selection.isSelected = true
             selection.selectionTime = 0f
+            selection.isUpgradePanelActive = true  // Enable enhanced highlighting
+            selectedTowerEntity = entity
+            isUpgradePanelOpen = true
             Log.d(TAG, "Selected ${tower.type.displayName} level ${tower.level}")
+
+            // Notify UI to show upgrade panel
+            val upgradeData = towerFactory.getUpgradeData(entity)
+            onUpgradePanelChanged?.invoke(upgradeData)
         } else {
+            selection.isUpgradePanelActive = false  // Disable enhanced highlighting
+            selectedTowerEntity = null
+            isUpgradePanelOpen = false
             Log.d(TAG, "Deselected ${tower.type.displayName} level ${tower.level}")
+
+            // Notify UI to hide upgrade panel
+            onUpgradePanelChanged?.invoke(null)
         }
 
         return true
@@ -327,7 +347,140 @@ class GameWorld(
     fun clearTowerSelection() {
         world.forEach<TowerSelectionComponent> { _, selection ->
             selection.isSelected = false
+            selection.isUpgradePanelActive = false
         }
+
+        // Close upgrade panel
+        if (isUpgradePanelOpen) {
+            selectedTowerEntity = null
+            isUpgradePanelOpen = false
+            onUpgradePanelChanged?.invoke(null)
+        }
+    }
+
+    // ============================================
+    // TOWER UPGRADE SYSTEM
+    // ============================================
+
+    /**
+     * Upgrade the selected tower with the chosen stat.
+     * @param stat The stat to upgrade (DAMAGE, RANGE, or FIRE_RATE)
+     * @return True if upgrade was successful
+     */
+    fun upgradeSelectedTower(stat: UpgradeableStat): Boolean {
+        val entity = selectedTowerEntity ?: return false
+        if (!world.isAlive(entity)) {
+            closeUpgradePanel()
+            return false
+        }
+
+        val upgradeCost = towerFactory.getUpgradeCost(entity)
+        if (upgradeCost == Int.MAX_VALUE) return false
+
+        // Check if we can afford it
+        if (!waveManager.spendGold(upgradeCost)) {
+            Log.d(TAG, "Cannot afford upgrade: need $upgradeCost, have ${waveManager.totalGold}")
+            return false
+        }
+
+        // Apply the upgrade
+        val success = towerFactory.upgradeTower(entity, stat, upgradeCost)
+        if (success) {
+            Log.d(TAG, "Upgraded tower $stat for $upgradeCost gold")
+
+            // Trigger VFX
+            val transform = world.getComponent<TransformComponent>(entity)
+            val tower = world.getComponent<TowerComponent>(entity)
+            if (transform != null && tower != null) {
+                vfxManager.onTowerUpgrade(transform.position, tower.type)
+            }
+
+            // Notify gold changed
+            onGoldChanged?.invoke(waveManager.totalGold)
+
+            // Update the upgrade panel with new data
+            val upgradeData = towerFactory.getUpgradeData(entity)
+            onUpgradePanelChanged?.invoke(upgradeData)
+        } else {
+            // Refund if upgrade failed
+            waveManager.addGold(upgradeCost)
+        }
+
+        return success
+    }
+
+    /**
+     * Sell the selected tower and receive gold refund.
+     * @return The gold received from selling, or 0 if sell failed
+     */
+    fun sellSelectedTower(): Int {
+        val entity = selectedTowerEntity ?: return 0
+        if (!world.isAlive(entity)) {
+            closeUpgradePanel()
+            return 0
+        }
+
+        // Get tower info for VFX before removal
+        val transform = world.getComponent<TransformComponent>(entity)
+        val tower = world.getComponent<TowerComponent>(entity)
+
+        // Sell the tower
+        val sellValue = towerFactory.sellTower(entity)
+        if (sellValue > 0) {
+            Log.d(TAG, "Sold tower for $sellValue gold")
+
+            // Trigger sell VFX
+            if (transform != null && tower != null) {
+                vfxManager.onTowerSell(transform.position, tower.type)
+            }
+
+            // Add gold to player
+            waveManager.addGold(sellValue)
+            onGoldChanged?.invoke(waveManager.totalGold)
+
+            // Recalculate paths since grid changed
+            pathManager.onMapChanged()
+
+            // Close the upgrade panel
+            closeUpgradePanel()
+        }
+
+        return sellValue
+    }
+
+    /**
+     * Close the upgrade panel without making any changes.
+     */
+    fun closeUpgradePanel() {
+        selectedTowerEntity = null
+        isUpgradePanelOpen = false
+        onUpgradePanelChanged?.invoke(null)
+
+        // Also clear visual selection and panel-active flag
+        world.forEach<TowerSelectionComponent> { _, selection ->
+            selection.isSelected = false
+            selection.isUpgradePanelActive = false
+        }
+    }
+
+    /**
+     * Get upgrade data for the currently selected tower.
+     */
+    fun getSelectedTowerUpgradeData(): TowerUpgradeData? {
+        val entity = selectedTowerEntity ?: return null
+        if (!world.isAlive(entity)) return null
+        return towerFactory.getUpgradeData(entity)
+    }
+
+    /**
+     * Get the screen position of the selected tower (for positioning the upgrade panel).
+     * Returns null if no tower is selected.
+     */
+    fun getSelectedTowerWorldPosition(): Vector2? {
+        val entity = selectedTowerEntity ?: return null
+        if (!world.isAlive(entity)) return null
+        val transform = world.getComponent<TransformComponent>(entity) ?: return null
+        return transform.position.copy()
     }
 
     fun update(deltaTime: Float) {
@@ -389,9 +542,10 @@ class GameWorld(
 
     /**
      * Render range circle for the currently selected (tapped) tower.
+     * When upgrade panel is active, also renders enhanced highlighting.
      */
     private fun renderSelectedTowerRange(spriteBatch: SpriteBatch, whiteTexture: Texture) {
-        world.forEachWith<TowerComponent, TransformComponent, TowerStatsComponent, TowerSelectionComponent> { _, tower, transform, stats, selection ->
+        world.forEachWith<TowerComponent, TransformComponent, TowerStatsComponent, TowerSelectionComponent> { entity, tower, transform, stats, selection ->
             if (selection.isSelected) {
                 // Update animation time for smooth pulse effect
                 selection.selectionTime += 0.016f  // Approximate frame time
@@ -403,10 +557,184 @@ class GameWorld(
                     transform.position,
                     stats.range,
                     tower.type.baseColor,
-                    selection.selectionTime
+                    selection.selectionTime,
+                    selection.isUpgradePanelActive
                 )
+
+                // When upgrade panel is active, render additional highlighting
+                if (selection.isUpgradePanelActive) {
+                    // Get sprite component for tower dimensions
+                    val sprite = world.getComponent<SpriteComponent>(entity)
+                    val towerWidth = sprite?.width ?: gridMap.cellSize * 0.7f
+                    val towerHeight = sprite?.height ?: gridMap.cellSize * 0.7f
+
+                    // Render pulsing tower outline
+                    renderTowerSelectionOutline(
+                        spriteBatch,
+                        whiteTexture,
+                        transform.position,
+                        towerWidth,
+                        towerHeight,
+                        tower.type.baseColor,
+                        selection.selectionTime
+                    )
+
+                    // Render floating beacon above tower
+                    renderSelectionBeacon(
+                        spriteBatch,
+                        whiteTexture,
+                        transform.position,
+                        tower.type.baseColor,
+                        selection.selectionTime
+                    )
+                }
             }
         }
+    }
+
+    /**
+     * Render a pulsing rectangular outline around the selected tower.
+     */
+    private fun renderTowerSelectionOutline(
+        spriteBatch: SpriteBatch,
+        whiteTexture: Texture,
+        position: Vector2,
+        width: Float,
+        height: Float,
+        color: Color,
+        animationTime: Float
+    ) {
+        // Fast pulse (8 rad/s) for active selection
+        val pulse = 1f + sin(animationTime * 8f) * 0.15f
+        val outlineWidth = 3f * pulse
+
+        // Expand outline beyond tower bounds
+        val padding = 6f
+        val halfW = (width / 2f + padding) * pulse
+        val halfH = (height / 2f + padding) * pulse
+
+        val outlineColor = color.copy().also { it.a = 0.7f + sin(animationTime * 8f) * 0.3f }
+        val glow = 0.8f + sin(animationTime * 8f) * 0.2f
+
+        // Draw 4 edges of the outline rectangle
+        // Top edge
+        spriteBatch.draw(
+            whiteTexture,
+            position.x - halfW, position.y + halfH - outlineWidth,
+            halfW * 2f, outlineWidth,
+            outlineColor, glow
+        )
+        // Bottom edge
+        spriteBatch.draw(
+            whiteTexture,
+            position.x - halfW, position.y - halfH,
+            halfW * 2f, outlineWidth,
+            outlineColor, glow
+        )
+        // Left edge
+        spriteBatch.draw(
+            whiteTexture,
+            position.x - halfW, position.y - halfH,
+            outlineWidth, halfH * 2f,
+            outlineColor, glow
+        )
+        // Right edge
+        spriteBatch.draw(
+            whiteTexture,
+            position.x + halfW - outlineWidth, position.y - halfH,
+            outlineWidth, halfH * 2f,
+            outlineColor, glow
+        )
+
+        // Draw corner accent squares (brighter)
+        val cornerSize = 6f * pulse
+        val cornerColor = color.copy()
+        val cornerGlow = 1.0f
+
+        // Top-left corner
+        spriteBatch.draw(whiteTexture, position.x - halfW - cornerSize/2, position.y + halfH - cornerSize/2, cornerSize, cornerSize, cornerColor, cornerGlow)
+        // Top-right corner
+        spriteBatch.draw(whiteTexture, position.x + halfW - cornerSize/2, position.y + halfH - cornerSize/2, cornerSize, cornerSize, cornerColor, cornerGlow)
+        // Bottom-left corner
+        spriteBatch.draw(whiteTexture, position.x - halfW - cornerSize/2, position.y - halfH - cornerSize/2, cornerSize, cornerSize, cornerColor, cornerGlow)
+        // Bottom-right corner
+        spriteBatch.draw(whiteTexture, position.x + halfW - cornerSize/2, position.y - halfH - cornerSize/2, cornerSize, cornerSize, cornerColor, cornerGlow)
+    }
+
+    /**
+     * Render a floating beacon above the selected tower (chevron pointing down).
+     */
+    private fun renderSelectionBeacon(
+        spriteBatch: SpriteBatch,
+        whiteTexture: Texture,
+        position: Vector2,
+        color: Color,
+        animationTime: Float
+    ) {
+        // Beacon bobs up and down above the tower
+        val bobOffset = sin(animationTime * 3f) * 8f
+        val beaconY = position.y + gridMap.cellSize * 0.5f + 50f + bobOffset
+
+        val beaconColor = color.copy().also { it.a = 0.8f + sin(animationTime * 4f) * 0.2f }
+        val beaconGlow = 0.9f
+
+        // Draw V-shaped chevron pointing down
+        val chevronWidth = 16f
+        val chevronHeight = 10f
+        val lineWidth = 3f
+
+        // Left arm of chevron (top-left to center-bottom)
+        val leftStartX = position.x - chevronWidth / 2f
+        val leftStartY = beaconY + chevronHeight / 2f
+        val centerX = position.x
+        val centerY = beaconY - chevronHeight / 2f
+
+        // Right arm of chevron (center-bottom to top-right)
+        val rightEndX = position.x + chevronWidth / 2f
+        val rightEndY = beaconY + chevronHeight / 2f
+
+        // Draw left arm
+        drawBeaconLine(spriteBatch, whiteTexture, leftStartX, leftStartY, centerX, centerY, lineWidth, beaconColor, beaconGlow)
+        // Draw right arm
+        drawBeaconLine(spriteBatch, whiteTexture, centerX, centerY, rightEndX, rightEndY, lineWidth, beaconColor, beaconGlow)
+
+        // Draw dashed vertical line connecting beacon to tower
+        val dashLength = 6f
+        val gapLength = 4f
+        val lineStartY = beaconY - chevronHeight / 2f - 5f
+        val lineEndY = position.y + gridMap.cellSize * 0.3f
+
+        var currentY = lineStartY
+        val dashColor = color.copy().also { it.a = 0.4f }
+        while (currentY > lineEndY) {
+            val dashEnd = maxOf(currentY - dashLength, lineEndY)
+            spriteBatch.draw(
+                whiteTexture,
+                position.x - 1.5f, dashEnd,
+                3f, currentY - dashEnd,
+                dashColor, 0.5f
+            )
+            currentY -= (dashLength + gapLength)
+        }
+    }
+
+    /**
+     * Helper to draw a line segment for the beacon chevron.
+     */
+    private fun drawBeaconLine(
+        spriteBatch: SpriteBatch,
+        whiteTexture: Texture,
+        x1: Float, y1: Float,
+        x2: Float, y2: Float,
+        width: Float,
+        color: Color,
+        glow: Float
+    ) {
+        val dx = x2 - x1
+        val dy = y2 - y1
+        val length = sqrt(dx * dx + dy * dy)
+        val angle = atan2(dy, dx)
+        spriteBatch.drawRotated(whiteTexture, x1, y1, length, width, angle, color, glow)
     }
 
     private fun renderGrid(spriteBatch: SpriteBatch, whiteTexture: Texture) {
@@ -688,27 +1016,41 @@ class GameWorld(
         center: Vector2,
         radius: Float,
         color: Color,
-        animationTime: Float
+        animationTime: Float,
+        isUpgradePanelActive: Boolean = false
     ) {
-        // Pulse animation (0.95 to 1.05 scale)
-        val pulse = 1f + sin(animationTime * 2.5f) * 0.03f
+        // Enhanced pulse when panel is active: 4 rad/s vs 2.5 rad/s
+        val pulseSpeed = if (isUpgradePanelActive) 4f else 2.5f
+        val pulse = 1f + sin(animationTime * pulseSpeed) * 0.03f
         val effectiveRadius = radius * pulse
+
+        // Enhanced brightness when panel is active (+15%)
+        val brightnessBoost = if (isUpgradePanelActive) 1.15f else 1f
 
         // 1. Semi-transparent gradient fill (concentric rings fading outward)
         renderGradientFill(spriteBatch, whiteTexture, center, effectiveRadius * 0.92f, color, 48)
 
         // 2. Inner ring (solid, subtle)
-        val innerColor = color.copy().also { it.a = 0.4f }
-        renderCircleOutline(spriteBatch, whiteTexture, center, effectiveRadius * 0.96f, innerColor, 2.5f, 64, 0.3f)
+        val innerAlpha = if (isUpgradePanelActive) 0.5f else 0.4f
+        val innerColor = color.copy().also { it.a = innerAlpha * brightnessBoost }
+        renderCircleOutline(spriteBatch, whiteTexture, center, effectiveRadius * 0.96f, innerColor, 2.5f, 64, 0.3f * brightnessBoost)
 
-        // 3. Main outer ring (bright, glowing)
-        val outerColor = color.copy().also { it.a = 0.85f }
-        renderCircleOutline(spriteBatch, whiteTexture, center, effectiveRadius, outerColor, 3.5f, 64, 0.7f)
+        // 3. Main outer ring (bright, glowing) - higher alpha when panel active
+        val outerAlpha = if (isUpgradePanelActive) 1f else 0.85f
+        val outerColor = color.copy().also { it.a = outerAlpha }
+        renderCircleOutline(spriteBatch, whiteTexture, center, effectiveRadius, outerColor, 3.5f, 64, 0.7f * brightnessBoost)
 
         // 4. Extra outer glow ring (pulsing)
         val glowPulse = 0.25f + sin(animationTime * 3.5f) * 0.15f
-        val glowColor = color.copy().also { it.a = glowPulse }
+        val glowColor = color.copy().also { it.a = glowPulse * brightnessBoost }
         renderCircleOutline(spriteBatch, whiteTexture, center, effectiveRadius + 5f, glowColor, 2f, 64, 1.0f)
+
+        // 5. Second outer glow ring when panel is active (double glow effect)
+        if (isUpgradePanelActive) {
+            val secondGlowPulse = 0.15f + sin(animationTime * 5f) * 0.1f
+            val secondGlowColor = color.copy().also { it.a = secondGlowPulse }
+            renderCircleOutline(spriteBatch, whiteTexture, center, effectiveRadius + 15f, secondGlowColor, 1.5f, 64, 0.8f)
+        }
     }
 
     /**

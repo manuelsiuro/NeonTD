@@ -23,7 +23,7 @@ object LevelRegistry {
             mapId = MapId.TUTORIAL,
             difficultyMultiplier = 0.8f,
             totalWaves = 10,
-            startingGold = 300,
+            startingGold = 30000,
             startingHealth = 25,
             unlockRequirement = null,  // Always unlocked
             difficulty = LevelDifficulty.EASY

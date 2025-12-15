@@ -2,6 +2,7 @@ package com.msa.neontd.game.entities
 
 import com.msa.neontd.engine.ecs.Component
 import com.msa.neontd.engine.ecs.Entity
+import kotlin.math.pow
 
 data class TowerComponent(
     val type: TowerType,
@@ -48,7 +49,8 @@ data class TowerAttackComponent(
  */
 data class TowerSelectionComponent(
     var isSelected: Boolean = false,
-    var selectionTime: Float = 0f  // For animation timing
+    var selectionTime: Float = 0f,  // For animation timing
+    var isUpgradePanelActive: Boolean = false  // True when upgrade panel is open for this tower
 ) : Component
 
 data class TowerBuffComponent(
@@ -97,6 +99,266 @@ enum class AuraEffect {
     DEBUFF_ENEMIES, // Debuffs enemies
     SLOW_ENEMIES,   // Slows enemies
     DAMAGE_ENEMIES  // Damages enemies over time
+}
+
+// ============================================
+// TOWER UPGRADE SYSTEM
+// ============================================
+
+/**
+ * The three stats that players can choose to upgrade.
+ */
+enum class UpgradeableStat {
+    DAMAGE,
+    RANGE,
+    FIRE_RATE
+}
+
+/**
+ * Tracks tower upgrade state including stat point allocation and total investment.
+ * Supports the stat-selection upgrade system where players choose which stat to boost.
+ */
+data class TowerUpgradeComponent(
+    /** Total gold invested (purchase price + all upgrade costs) */
+    var totalInvestment: Int = 0,
+
+    /** Number of upgrade points allocated to each stat */
+    val statPoints: MutableMap<UpgradeableStat, Int> = mutableMapOf(
+        UpgradeableStat.DAMAGE to 0,
+        UpgradeableStat.RANGE to 0,
+        UpgradeableStat.FIRE_RATE to 0
+    ),
+
+    /** Ordered history of upgrade choices for display/respec */
+    val upgradeHistory: MutableList<UpgradeableStat> = mutableListOf()
+) : Component {
+
+    /** Current tower level (1 = base, max = 10) */
+    val currentLevel: Int
+        get() = 1 + upgradeHistory.size
+
+    /** Check if tower can be upgraded further */
+    val canUpgrade: Boolean
+        get() = currentLevel < MAX_LEVEL
+
+    /** Get points allocated to a specific stat */
+    fun getStatPoints(stat: UpgradeableStat): Int = statPoints[stat] ?: 0
+
+    /** Calculate sell value (70% of total investment) */
+    fun getSellValue(): Int = (totalInvestment * SELL_REFUND_PERCENT).toInt()
+
+    companion object {
+        const val MAX_LEVEL = 10
+        const val SELL_REFUND_PERCENT = 0.70f
+    }
+}
+
+/**
+ * Stores the original base stats of a tower for upgrade calculations.
+ * These values never change after tower creation.
+ */
+data class TowerBaseStatsComponent(
+    val baseDamage: Float,
+    val baseRange: Float,
+    val baseFireRate: Float,
+    val baseSplashRadius: Float = 0f,
+    val baseCritChance: Float = 0f,
+    val baseCritMultiplier: Float = 2f,
+    val baseDotDamage: Float = 0f,
+    val baseDotDuration: Float = 0f,
+    val baseSlowPercent: Float = 0f,
+    val baseSlowDuration: Float = 0f,
+    val baseChainCount: Int = 0,
+    val baseChainRange: Float = 0f,
+    val basePiercing: Int = 1,
+    val baseProjectileSpeed: Float = 400f
+) : Component
+
+/**
+ * Formulas for calculating stat multipliers from upgrade points.
+ * Uses soft diminishing returns to prevent overpowered late-game towers.
+ */
+object UpgradeFormulas {
+
+    // Growth rates per upgrade point
+    private const val DAMAGE_GROWTH = 0.12f      // ~12% per point initially
+    private const val RANGE_GROWTH = 0.06f       // ~6% per point initially
+    private const val FIRE_RATE_GROWTH = 0.10f   // ~10% per point initially
+
+    // Diminishing returns rates
+    private const val DAMAGE_DIMINISH = 0.05f
+    private const val RANGE_DIMINISH = 0.08f
+    private const val FIRE_RATE_DIMINISH = 0.05f
+
+    // Secondary stat scaling (scales with related primary stat)
+    private const val SPLASH_RADIUS_SCALE = 0.04f
+    private const val CRIT_CHANCE_SCALE = 0.015f
+    private const val CRIT_MULT_SCALE = 0.10f
+    private const val DOT_DAMAGE_SCALE = 0.10f
+    private const val DOT_DURATION_SCALE = 0.05f
+    private const val SLOW_PERCENT_SCALE = 0.02f
+    private const val SLOW_DURATION_SCALE = 0.04f
+    private const val CHAIN_RANGE_SCALE = 0.06f
+
+    /**
+     * Calculate stat multiplier with soft diminishing returns.
+     * Formula: 1 + points * growthRate * (1 / (1 + points * diminishRate))
+     */
+    private fun calculateMultiplier(points: Int, growthRate: Float, diminishRate: Float): Float {
+        if (points <= 0) return 1f
+        val diminishFactor = 1f / (1f + points * diminishRate)
+        return 1f + points * growthRate * diminishFactor
+    }
+
+    /** Calculate damage multiplier from upgrade points */
+    fun getDamageMultiplier(damagePoints: Int): Float {
+        return calculateMultiplier(damagePoints, DAMAGE_GROWTH, DAMAGE_DIMINISH)
+    }
+
+    /** Calculate range multiplier from upgrade points */
+    fun getRangeMultiplier(rangePoints: Int): Float {
+        return calculateMultiplier(rangePoints, RANGE_GROWTH, RANGE_DIMINISH)
+    }
+
+    /** Calculate fire rate multiplier from upgrade points */
+    fun getFireRateMultiplier(fireRatePoints: Int): Float {
+        return calculateMultiplier(fireRatePoints, FIRE_RATE_GROWTH, FIRE_RATE_DIMINISH)
+    }
+
+    /** Calculate effective damage */
+    fun calculateEffectiveDamage(baseDamage: Float, damagePoints: Int): Float {
+        return baseDamage * getDamageMultiplier(damagePoints)
+    }
+
+    /** Calculate effective range */
+    fun calculateEffectiveRange(baseRange: Float, rangePoints: Int): Float {
+        return baseRange * getRangeMultiplier(rangePoints)
+    }
+
+    /** Calculate effective fire rate */
+    fun calculateEffectiveFireRate(baseFireRate: Float, fireRatePoints: Int): Float {
+        return baseFireRate * getFireRateMultiplier(fireRatePoints)
+    }
+
+    /** Calculate splash radius bonus from damage points */
+    fun calculateSplashRadius(baseSplash: Float, damagePoints: Int): Float {
+        return baseSplash * (1f + damagePoints * SPLASH_RADIUS_SCALE)
+    }
+
+    /** Calculate crit chance bonus from damage points */
+    fun calculateCritChance(baseCrit: Float, damagePoints: Int): Float {
+        return (baseCrit + damagePoints * CRIT_CHANCE_SCALE).coerceAtMost(0.75f)
+    }
+
+    /** Calculate crit multiplier bonus from damage points */
+    fun calculateCritMultiplier(baseMult: Float, damagePoints: Int): Float {
+        return baseMult + damagePoints * CRIT_MULT_SCALE
+    }
+
+    /** Calculate DOT damage from damage points */
+    fun calculateDotDamage(baseDot: Float, damagePoints: Int): Float {
+        return baseDot * (1f + damagePoints * DOT_DAMAGE_SCALE)
+    }
+
+    /** Calculate DOT duration from fire rate points */
+    fun calculateDotDuration(baseDuration: Float, fireRatePoints: Int): Float {
+        return baseDuration * (1f + fireRatePoints * DOT_DURATION_SCALE)
+    }
+
+    /** Calculate slow percent from range points */
+    fun calculateSlowPercent(baseSlow: Float, rangePoints: Int): Float {
+        return (baseSlow + rangePoints * SLOW_PERCENT_SCALE).coerceAtMost(0.9f)
+    }
+
+    /** Calculate slow duration from fire rate points */
+    fun calculateSlowDuration(baseDuration: Float, fireRatePoints: Int): Float {
+        return baseDuration * (1f + fireRatePoints * SLOW_DURATION_SCALE)
+    }
+
+    /** Calculate chain range from range points */
+    fun calculateChainRange(baseChainRange: Float, rangePoints: Int): Float {
+        return baseChainRange * (1f + rangePoints * CHAIN_RANGE_SCALE)
+    }
+
+    /** Calculate chain count bonus at specific levels (bonus at level 4 and 7) */
+    fun calculateChainCount(baseCount: Int, currentLevel: Int): Int {
+        var bonus = 0
+        if (currentLevel >= 4) bonus++
+        if (currentLevel >= 7) bonus++
+        return baseCount + bonus
+    }
+
+    /** Calculate piercing bonus at specific levels (bonus at level 5 and 9) */
+    fun calculatePiercing(basePiercing: Int, currentLevel: Int): Int {
+        var bonus = 0
+        if (currentLevel >= 5) bonus++
+        if (currentLevel >= 9) bonus++
+        return basePiercing + bonus
+    }
+
+    /** Get glow intensity based on tower level */
+    fun getLevelGlow(level: Int): Float {
+        return when {
+            level <= 3 -> 0.5f + level * 0.05f
+            level <= 6 -> 0.65f + (level - 3) * 0.08f
+            level <= 9 -> 0.89f + (level - 6) * 0.03f
+            else -> 1.0f
+        }
+    }
+
+    /**
+     * Preview what the stat would be after an upgrade.
+     * Useful for UI display.
+     */
+    fun previewUpgrade(
+        stat: UpgradeableStat,
+        currentStats: TowerStatsComponent,
+        baseStats: TowerBaseStatsComponent,
+        upgrade: TowerUpgradeComponent
+    ): Float {
+        val newPoints = upgrade.getStatPoints(stat) + 1
+        return when (stat) {
+            UpgradeableStat.DAMAGE -> calculateEffectiveDamage(baseStats.baseDamage, newPoints)
+            UpgradeableStat.RANGE -> calculateEffectiveRange(baseStats.baseRange, newPoints)
+            UpgradeableStat.FIRE_RATE -> calculateEffectiveFireRate(baseStats.baseFireRate, newPoints)
+        }
+    }
+}
+
+/**
+ * Cost calculator for tower upgrades.
+ * Uses exponential scaling with tower-type base cost multiplier.
+ */
+object UpgradeCostCalculator {
+
+    private const val BASE_UPGRADE_MULTIPLIER = 0.40f  // 40% of tower base cost
+    private const val LEVEL_EXPONENT = 1.35f           // Exponential growth
+    private const val MIN_UPGRADE_COST = 10            // Minimum cost
+
+    /**
+     * Calculate the cost to upgrade from currentLevel to currentLevel + 1.
+     * Formula: baseCost * 0.40 * (currentLevel ^ 1.35)
+     */
+    fun getUpgradeCost(type: TowerType, currentLevel: Int): Int {
+        if (currentLevel >= TowerUpgradeComponent.MAX_LEVEL) return Int.MAX_VALUE
+
+        val baseCost = type.baseCost.toFloat()
+        val levelFactor = currentLevel.toDouble().pow(LEVEL_EXPONENT.toDouble()).toFloat()
+
+        return (baseCost * BASE_UPGRADE_MULTIPLIER * levelFactor).toInt()
+            .coerceAtLeast(MIN_UPGRADE_COST)
+    }
+
+    /**
+     * Calculate cumulative investment at a given level (includes base cost).
+     */
+    fun getCumulativeInvestment(type: TowerType, currentLevel: Int): Int {
+        var total = type.baseCost
+        for (level in 1 until currentLevel) {
+            total += getUpgradeCost(type, level)
+        }
+        return total
+    }
 }
 
 // Tower data definitions

@@ -22,6 +22,8 @@ import com.msa.neontd.game.level.LevelRegistry
 import com.msa.neontd.game.level.ProgressionRepository
 import com.msa.neontd.game.ui.GameHUD
 import com.msa.neontd.game.ui.OptionsAction
+import com.msa.neontd.game.ui.UpgradeAction
+import com.msa.neontd.game.entities.UpgradeableStat
 import com.msa.neontd.game.world.GridMap
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
@@ -250,6 +252,16 @@ class GLRenderer(
             GameStateManager.transitionTo(GameState.VICTORY)
         }
 
+        // Wire up upgrade panel callback
+        gameWorld.onUpgradePanelChanged = { upgradeData ->
+            if (upgradeData != null) {
+                val worldPos = gameWorld.getSelectedTowerWorldPosition()
+                gameHUD.showUpgradePanel(upgradeData, worldPos)
+            } else {
+                gameHUD.hideUpgradePanel()
+            }
+        }
+
         // Initialize HUD (will be sized in onScreenSizeChanged)
         gameHUD = GameHUD(screenWidth.toFloat(), screenHeight.toFloat())
 
@@ -408,6 +420,12 @@ class GLRenderer(
         spriteBatch.setProjectionMatrix(hudProjectionMatrix)
         spriteBatch.begin(spriteShader)
         gameHUD.render(spriteBatch, whitePixelTexture)
+
+        // Render upgrade panel on top if open (corner card design)
+        if (gameWorld.isUpgradePanelOpen) {
+            gameHUD.renderCornerUpgradePanel(spriteBatch, whitePixelTexture)
+        }
+
         spriteBatch.end()
     }
 
@@ -429,6 +447,35 @@ class GLRenderer(
                             onQuitToMenu?.invoke()
                         }
                         null -> { /* Menu toggled or closed */ }
+                    }
+                    return true
+                }
+
+                // Check for upgrade panel SECOND (when open)
+                if (!GameStateManager.isGameEnded() && gameHUD.isUpgradePanelTouched(event.x, event.y)) {
+                    val action = gameHUD.handleUpgradePanelTouch(event.x, event.y)
+                    when (action) {
+                        UpgradeAction.UPGRADE_DAMAGE -> {
+                            val success = gameWorld.upgradeSelectedTower(UpgradeableStat.DAMAGE)
+                            Log.d(TAG, "Upgrade DAMAGE: ${if (success) "success" else "failed"}")
+                        }
+                        UpgradeAction.UPGRADE_RANGE -> {
+                            val success = gameWorld.upgradeSelectedTower(UpgradeableStat.RANGE)
+                            Log.d(TAG, "Upgrade RANGE: ${if (success) "success" else "failed"}")
+                        }
+                        UpgradeAction.UPGRADE_FIRE_RATE -> {
+                            val success = gameWorld.upgradeSelectedTower(UpgradeableStat.FIRE_RATE)
+                            Log.d(TAG, "Upgrade FIRE_RATE: ${if (success) "success" else "failed"}")
+                        }
+                        UpgradeAction.SELL -> {
+                            val sellValue = gameWorld.sellSelectedTower()
+                            Log.d(TAG, "Sold tower for $sellValue gold")
+                        }
+                        UpgradeAction.CLOSE_PANEL -> {
+                            gameWorld.closeUpgradePanel()
+                            Log.d(TAG, "Upgrade panel closed")
+                        }
+                        null -> { /* Touch inside panel but not on a button */ }
                     }
                     return true
                 }

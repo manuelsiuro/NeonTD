@@ -217,17 +217,51 @@ class VFXManager {
     }
 
     fun onTowerUpgrade(position: Vector2, towerType: TowerType) {
-        val config = ParticleSystem.SPAWN.copy(count = 25, speed = 80f..150f)
-        emit(position, config, towerType.baseColor)
-        particleSystem.emitCircle(position, 40f, ParticleSystem.IMPACT_SMALL.copy(count = 16), towerType.baseColor)
+        // Central burst effect
+        val burstConfig = ParticleSystem.SPAWN.copy(
+            count = 30,
+            speed = 100f..200f,
+            lifetime = 0.4f..0.6f
+        )
+        emit(position, burstConfig, towerType.baseColor)
+
+        // Expanding ring of particles
+        particleSystem.emitCircle(position, 45f, ParticleSystem.IMPACT_SMALL.copy(count = 18), towerType.baseColor)
+
+        // Secondary gold accent particles (power-up feel)
+        val goldAccent = ParticleSystem.TRAIL_BRIGHT.copy(
+            startColor = Color.NEON_YELLOW.copy(),
+            endColor = towerType.baseColor.copy().also { it.a = 0f },
+            count = 8,
+            speed = 60f..100f,
+            lifetime = 0.3f..0.5f
+        )
+        emit(position, goldAccent)
+
+        // Small screen feedback
+        camera?.shake(2f, 0.1f)
     }
 
-    fun onTowerSell(position: Vector2) {
+    fun onTowerSell(position: Vector2, towerType: TowerType? = null) {
+        // Gold implosion effect with tower's color fading to gold
+        val baseColor = towerType?.baseColor ?: Color.NEON_CYAN
         val config = ParticleSystem.DEATH.copy(
-            startColor = Color.NEON_YELLOW.copy(),
-            endColor = Color.NEON_YELLOW.copy().also { it.a = 0f }
+            startColor = baseColor.copy(),
+            endColor = Color.NEON_YELLOW.copy().also { it.a = 0f },
+            count = 20,
+            speed = 40f..100f
         )
         emit(position, config)
+
+        // Gold coin particle burst
+        val goldBurst = ParticleSystem.IMPACT_SMALL.copy(
+            startColor = Color.NEON_YELLOW.copy(),
+            endColor = Color.NEON_YELLOW.copy().also { it.a = 0f },
+            count = 12,
+            speed = 80f..150f,
+            lifetime = 0.3f..0.5f
+        )
+        emit(position, goldBurst)
     }
 
     // ===== Aura Effects =====
