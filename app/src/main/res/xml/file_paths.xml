@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Cache directory for shared QR code images -->
+    <cache-path
+        name="shared_qr_codes"
+        path="shared_qr_codes/" />
+</paths>

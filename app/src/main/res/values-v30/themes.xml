@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.NeonTD" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- Transparent system bars for edge-to-edge -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <!-- Disable automatic contrast enforcement for true edge-to-edge -->
+        <item name="android:enforceNavigationBarContrast">false</item>
+        <item name="android:enforceStatusBarContrast">false</item>
+    </style>
+
+    <!-- Game-specific fullscreen theme with enhanced edge-to-edge -->
+    <style name="Theme.NeonTD.Game" parent="Theme.NeonTD">
+        <item name="android:windowFullscreen">true</item>
+        <!-- Render into display cutout areas on short edges (ideal for landscape games) -->
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
+        <item name="android:enforceStatusBarContrast">false</item>
+    </style>
+</resources>

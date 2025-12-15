@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.NeonTD" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- Transparent system bars for edge-to-edge -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <!-- Game-specific fullscreen theme with display cutout support -->
+    <style name="Theme.NeonTD.Game" parent="Theme.NeonTD">
+        <item name="android:windowFullscreen">true</item>
+        <!-- Render into display cutout areas on short edges (ideal for landscape games) -->
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+</resources>
