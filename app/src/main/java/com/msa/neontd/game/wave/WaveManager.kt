@@ -208,56 +208,61 @@ object WaveGenerator {
     fun generateWave(waveNumber: Int): WaveDefinition {
         val spawns = mutableListOf<WaveSpawn>()
 
+        // Spawn interval tiers (balance update):
+        // Early (waves 1-5): 1.0s between enemies
+        // Mid (waves 6-15): 0.7s between enemies
+        // Late (waves 16+): 0.5s between enemies
+
         when {
             waveNumber <= 3 -> {
-                // Early waves: just basics
+                // Early waves: just basics (interval: 1.0s - EARLY tier)
                 spawns.add(WaveSpawn(
                     enemyType = EnemyType.BASIC,
                     count = 5 + waveNumber * 2,
                     delay = 0f,
-                    interval = 1f
+                    interval = 1.0f
                 ))
             }
-            waveNumber <= 6 -> {
-                // Introduce fast enemies
-                spawns.add(WaveSpawn(EnemyType.BASIC, 6 + waveNumber, 0f, 0.8f))
-                spawns.add(WaveSpawn(EnemyType.FAST, waveNumber, 2f, 0.5f))
+            waveNumber <= 5 -> {
+                // Late early waves: introduce fast enemies (interval: 1.0s - EARLY tier)
+                spawns.add(WaveSpawn(EnemyType.BASIC, 6 + waveNumber, 0f, 1.0f))
+                spawns.add(WaveSpawn(EnemyType.FAST, waveNumber, 2f, 0.8f))
             }
             waveNumber <= 10 -> {
-                // Introduce tanks
+                // Mid waves: introduce tanks (interval: 0.7s - MID tier)
                 spawns.add(WaveSpawn(EnemyType.BASIC, 8 + waveNumber, 0f, 0.7f))
-                spawns.add(WaveSpawn(EnemyType.FAST, waveNumber + 2, 1f, 0.4f))
+                spawns.add(WaveSpawn(EnemyType.FAST, waveNumber + 2, 1f, 0.6f))
                 spawns.add(WaveSpawn(EnemyType.TANK, waveNumber / 3, 3f, 2f))
-            }
-            waveNumber == 10 -> {
-                // First mini-boss wave
-                spawns.add(WaveSpawn(EnemyType.BASIC, 15, 0f, 0.5f))
-                spawns.add(WaveSpawn(EnemyType.MINI_BOSS, 1, 5f, 0f))
+
+                // Mini-boss at wave 10
+                if (waveNumber == 10) {
+                    spawns.add(WaveSpawn(EnemyType.MINI_BOSS, 1, 5f, 0f))
+                }
             }
             waveNumber <= 15 -> {
-                // Introduce flying and healers
-                spawns.add(WaveSpawn(EnemyType.BASIC, 10 + waveNumber, 0f, 0.6f))
-                spawns.add(WaveSpawn(EnemyType.FAST, waveNumber, 1f, 0.4f))
-                spawns.add(WaveSpawn(EnemyType.FLYING, waveNumber / 2, 2f, 1f))
-                spawns.add(WaveSpawn(EnemyType.HEALER, 1 + waveNumber / 5, 3f, 3f))
+                // Mid-late waves: flying and healers (interval: 0.7s - MID tier)
+                spawns.add(WaveSpawn(EnemyType.BASIC, 10 + waveNumber, 0f, 0.7f))
+                spawns.add(WaveSpawn(EnemyType.FAST, waveNumber, 1f, 0.6f))
+                spawns.add(WaveSpawn(EnemyType.FLYING, waveNumber / 2, 2f, 0.8f))
+                spawns.add(WaveSpawn(EnemyType.HEALER, 1 + waveNumber / 5, 3f, 2f))
             }
             waveNumber == 20 -> {
-                // Boss wave
-                spawns.add(WaveSpawn(EnemyType.BASIC, 20, 0f, 0.4f))
-                spawns.add(WaveSpawn(EnemyType.TANK, 5, 2f, 1.5f))
+                // Boss wave (interval: 0.5s - LATE tier)
+                spawns.add(WaveSpawn(EnemyType.BASIC, 20, 0f, 0.5f))
+                spawns.add(WaveSpawn(EnemyType.TANK, 5, 2f, 1.2f))
                 spawns.add(WaveSpawn(EnemyType.BOSS, 1, 8f, 0f))
             }
             else -> {
-                // Endless mode scaling
+                // Late/Endless mode (interval: 0.5s - LATE tier)
                 val baseCount = 10 + waveNumber
                 spawns.add(WaveSpawn(EnemyType.BASIC, baseCount, 0f, 0.5f))
-                spawns.add(WaveSpawn(EnemyType.FAST, baseCount / 2, 1f, 0.3f))
-                spawns.add(WaveSpawn(EnemyType.TANK, waveNumber / 4, 2f, 1.5f))
-                spawns.add(WaveSpawn(EnemyType.FLYING, waveNumber / 3, 2.5f, 0.8f))
+                spawns.add(WaveSpawn(EnemyType.FAST, baseCount / 2, 1f, 0.4f))
+                spawns.add(WaveSpawn(EnemyType.TANK, waveNumber / 4, 2f, 1.2f))
+                spawns.add(WaveSpawn(EnemyType.FLYING, waveNumber / 3, 2.5f, 0.6f))
 
                 // Every 5 waves after 20, add a mini-boss
                 if (waveNumber % 5 == 0) {
-                    spawns.add(WaveSpawn(EnemyType.MINI_BOSS, waveNumber / 10, 5f, 3f))
+                    spawns.add(WaveSpawn(EnemyType.MINI_BOSS, waveNumber / 10, 5f, 2f))
                 }
 
                 // Every 10 waves after 20, add a boss
@@ -274,13 +279,13 @@ object WaveGenerator {
                         EnemyType.SPLITTING
                     )
                     val specialType = specialTypes[(waveNumber / 5) % specialTypes.size]
-                    spawns.add(WaveSpawn(specialType, waveNumber / 8, 4f, 1f))
+                    spawns.add(WaveSpawn(specialType, waveNumber / 8, 4f, 0.8f))
                 }
             }
         }
 
-        // Bonus gold increases with wave
-        val bonusGold = waveNumber * 10 + (waveNumber / 5) * 25
+        // Bonus gold increases with wave (balance update: increased from 10/25 to 15/30)
+        val bonusGold = waveNumber * 15 + (waveNumber / 5) * 30
 
         return WaveDefinition(
             waveNumber = waveNumber,

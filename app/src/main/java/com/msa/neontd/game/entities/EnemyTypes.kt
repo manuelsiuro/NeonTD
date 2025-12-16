@@ -15,112 +15,112 @@ enum class EnemyType(
 ) {
     BASIC(
         "Drone",
-        100f, 60f, 0f, 10,
+        100f, 60f, 0f, 12,  // Gold: 10 → 12 (balance update)
         Color.NEON_CYAN,
         ShapeType.CIRCLE,
         1.0f
     ),
     FAST(
         "Runner",
-        50f, 120f, 0f, 15,
+        50f, 120f, 0f, 18,  // Gold: 15 → 18 (balance update)
         Color.NEON_GREEN,
         ShapeType.DIAMOND,
         0.7f
     ),
     TANK(
         "Heavy",
-        400f, 30f, 30f, 25,
+        400f, 30f, 30f, 35,  // Gold: 25 → 35 (balance update)
         Color(0.6f, 0.6f, 0.7f, 1f),
         ShapeType.HEXAGON,
         1.5f
     ),
     FLYING(
         "Flyer",
-        80f, 80f, 0f, 20,
+        80f, 80f, 0f, 25,  // Gold: 20 → 25 (balance update)
         Color(0.8f, 0.8f, 1f, 1f),
         ShapeType.TRIANGLE,
         0.8f
     ),
     HEALER(
         "Medic",
-        120f, 50f, 5f, 30,
+        120f, 50f, 5f, 40,  // Gold: 30 → 40 (balance update)
         Color(0.2f, 1f, 0.5f, 1f),
         ShapeType.CROSS,
         1.0f
     ),
     SHIELDED(
         "Guardian",
-        150f, 45f, 10f, 35,
+        150f, 45f, 10f, 45,  // Gold: 35 → 45 (balance update)
         Color(0.3f, 0.6f, 1f, 1f),
         ShapeType.OCTAGON,
         1.2f
     ),
     SPAWNER(
         "Hive",
-        200f, 35f, 15f, 40,
+        200f, 35f, 15f, 50,  // Gold: 40 → 50 (balance update)
         Color(0.8f, 0.4f, 0.8f, 1f),
         ShapeType.HEXAGON,
         1.3f
     ),
     PHASING(
         "Phantom",
-        100f, 55f, 0f, 35,
+        100f, 55f, 0f, 40,  // Gold: 35 → 40 (balance update)
         Color(0.5f, 0.2f, 0.8f, 1f),
         ShapeType.DIAMOND,
         0.9f
     ),
     SPLITTING(
         "Splitter",
-        150f, 50f, 5f, 20,
+        150f, 50f, 5f, 25,  // Gold: 20 → 25 (balance update)
         Color(1f, 0.5f, 0.2f, 1f),
         ShapeType.TRIANGLE,
         1.0f
     ),
     REGENERATING(
         "Regen",
-        180f, 45f, 5f, 30,
+        180f, 45f, 5f, 35,  // Gold: 30 → 35 (balance update)
         Color(0.3f, 0.9f, 0.3f, 1f),
         ShapeType.HEART,
         1.0f
     ),
     STEALTH(
         "Shadow",
-        70f, 70f, 0f, 25,
+        70f, 70f, 0f, 30,  // Gold: 25 → 30 (balance update)
         Color(0.2f, 0.2f, 0.3f, 1f),
         ShapeType.DIAMOND,
         0.8f
     ),
     FIRE_ELEMENTAL(
         "Inferno",
-        200f, 50f, 10f, 40,
+        200f, 50f, 10f, 45,  // Gold: 40 → 45 (balance update)
         Color(1f, 0.3f, 0f, 1f),
         ShapeType.PENTAGON,
         1.1f
     ),
     ICE_ELEMENTAL(
         "Frost",
-        200f, 50f, 10f, 40,
+        200f, 50f, 10f, 45,  // Gold: 40 → 45 (balance update)
         Color(0.5f, 0.8f, 1f, 1f),
         ShapeType.STAR_6,
         1.1f
     ),
     LIGHTNING_ELEMENTAL(
         "Storm",
-        180f, 65f, 5f, 40,
+        180f, 65f, 5f, 45,  // Gold: 40 → 45 (balance update)
         Color(1f, 1f, 0.3f, 1f),
         ShapeType.LIGHTNING_BOLT,
         1.1f
     ),
     MINI_BOSS(
         "Elite",
-        800f, 40f, 40f, 100,
+        800f, 40f, 40f, 150,  // Gold: 100 → 150 (balance update)
         Color.NEON_ORANGE,
         ShapeType.PENTAGON,
         1.8f
     ),
     BOSS(
         "Overlord",
-        3000f, 25f, 60f, 500,
+        3000f, 25f, 60f, 750,  // Gold: 500 → 750 (balance update)
         Color.NEON_MAGENTA,
         ShapeType.STAR,
         2.5f

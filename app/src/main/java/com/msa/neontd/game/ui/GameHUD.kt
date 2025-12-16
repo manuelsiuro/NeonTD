@@ -283,11 +283,13 @@ class GameHUD(
                 currentTransition = HUDTransition.FADE_IN_OVERLAY
                 transitionDuration = 0.5f
                 gameOverTimer = 0f
+                hideUpgradePanel()
             }
             GameState.VICTORY -> {
                 currentTransition = HUDTransition.FADE_IN_OVERLAY
                 transitionDuration = 0.5f
                 gameOverTimer = 0f
+                hideUpgradePanel()
             }
             GameState.PLAYING -> {
                 if (oldState == GameState.PAUSED) {
