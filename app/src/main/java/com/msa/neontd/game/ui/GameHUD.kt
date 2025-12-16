@@ -1,5 +1,6 @@
 package com.msa.neontd.game.ui
 
+import com.msa.neontd.engine.audio.AudioEventHandler
 import com.msa.neontd.engine.core.GameState
 import com.msa.neontd.engine.graphics.SafeAreaInsets
 import com.msa.neontd.engine.graphics.ShapeType
@@ -1351,6 +1352,10 @@ class GameHUD(
                 longPressTouchY = screenY
 
                 selectedTowerIndex = area.index
+
+                // Audio: Tower selection click
+                AudioEventHandler.onButtonClick()
+
                 return area.towerType
             }
         }
@@ -1408,6 +1413,8 @@ class GameHUD(
         restartButtonArea?.let { area ->
             if (screenX >= area.x && screenX <= area.x + area.width &&
                 touchY >= area.y && touchY <= area.y + area.height) {
+                // Audio: Button click
+                AudioEventHandler.onButtonClick()
                 return true
             }
         }
@@ -2074,6 +2081,8 @@ class GameHUD(
         speedButtonArea?.let { area ->
             if (screenX >= area.x && screenX <= area.x + area.width &&
                 touchY >= area.y && touchY <= area.y + area.height) {
+                // Audio: Button click
+                AudioEventHandler.onButtonClick()
                 return true
             }
         }
@@ -2093,6 +2102,12 @@ class GameHUD(
                 touchY >= area.y && touchY <= area.y + area.height) {
                 // Toggle menu open/close
                 isOptionsMenuOpen = !isOptionsMenuOpen
+                // Audio: Menu open/close sound
+                if (isOptionsMenuOpen) {
+                    AudioEventHandler.onMenuOpen()
+                } else {
+                    AudioEventHandler.onMenuClose()
+                }
                 return null
             }
         }
@@ -2104,6 +2119,8 @@ class GameHUD(
                 if (screenX >= area.x && screenX <= area.x + area.width &&
                     touchY >= area.y && touchY <= area.y + area.height) {
                     isOptionsMenuOpen = false
+                    // Audio: Button click
+                    AudioEventHandler.onButtonClick()
                     return when (index) {
                         0 -> OptionsAction.QUIT_TO_MENU
                         else -> null
@@ -2113,6 +2130,7 @@ class GameHUD(
 
             // Touch outside menu - close it
             isOptionsMenuOpen = false
+            AudioEventHandler.onMenuClose()
             return null
         }
 
@@ -2197,22 +2215,27 @@ class GameHUD(
 
         // Check close button first
         if (isPointInRect(screenX, touchY, areas.closeButton)) {
+            AudioEventHandler.onButtonClick()
             return UpgradeAction.CLOSE_PANEL
         }
 
         // Check upgrade buttons
         if (isPointInRect(screenX, touchY, areas.damageButton)) {
+            AudioEventHandler.onButtonClick()
             return UpgradeAction.UPGRADE_DAMAGE
         }
         if (isPointInRect(screenX, touchY, areas.rangeButton)) {
+            AudioEventHandler.onButtonClick()
             return UpgradeAction.UPGRADE_RANGE
         }
         if (isPointInRect(screenX, touchY, areas.fireRateButton)) {
+            AudioEventHandler.onButtonClick()
             return UpgradeAction.UPGRADE_FIRE_RATE
         }
 
         // Check sell button
         if (isPointInRect(screenX, touchY, areas.sellButton)) {
+            AudioEventHandler.onButtonClick()
             return UpgradeAction.SELL
         }
 

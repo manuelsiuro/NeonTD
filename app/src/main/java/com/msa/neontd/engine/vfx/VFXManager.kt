@@ -1,5 +1,6 @@
 package com.msa.neontd.engine.vfx
 
+import com.msa.neontd.engine.audio.AudioEventHandler
 import com.msa.neontd.engine.graphics.Camera
 import com.msa.neontd.engine.graphics.SpriteBatch
 import com.msa.neontd.engine.resources.Texture
@@ -67,6 +68,9 @@ class VFXManager {
         }
         val color = towerType?.baseColor ?: getColorForDamageType(damageType)
         emit(position, config, color)
+
+        // Audio: Impact sound
+        AudioEventHandler.onProjectileImpact(position, damageType, towerType)
     }
 
     fun onExplosion(position: Vector2, radius: Float, damageType: DamageType) {
@@ -83,15 +87,24 @@ class VFXManager {
         // Screen shake based on explosion size
         val shakeIntensity = (radius / 40f).coerceIn(3f, 12f)
         camera?.shake(shakeIntensity, 0.2f)
+
+        // Audio: Explosion sound
+        AudioEventHandler.onExplosion(position, radius, damageType)
     }
 
     fun onChainLightning(start: Vector2, end: Vector2) {
         particleSystem.emitLine(start, end, ParticleSystem.ELECTRIC, Color.NEON_CYAN.copy())
+
+        // Audio: Chain lightning sound
+        AudioEventHandler.onChainLightning(start, end)
     }
 
     fun onBeamHit(position: Vector2, towerType: TowerType) {
         val config = ParticleSystem.IMPACT_SMALL.copy(count = 3)
         emit(position, config, towerType.baseColor)
+
+        // Audio: Beam hit sound
+        AudioEventHandler.onBeamHit(position, towerType)
     }
 
     // ===== Tower Firing Effects =====
@@ -102,6 +115,9 @@ class VFXManager {
             angle = getAngleRange(direction, 40f)
         )
         emit(position, flashConfig, towerType.baseColor)
+
+        // Audio: Tower fire sound
+        AudioEventHandler.onTowerFire(position, direction, towerType)
     }
 
     fun onTowerCharging(entityId: Int, position: Vector2, towerType: TowerType, progress: Float) {
@@ -112,6 +128,9 @@ class VFXManager {
                 spread = 50f * (1f - progress) + 20f
             )
             emit(position, config, towerType.baseColor)
+
+            // Audio: Charging sound (rate limited in handler)
+            AudioEventHandler.onTowerCharging(entityId, position, towerType, progress)
         }
     }
 
@@ -120,6 +139,9 @@ class VFXManager {
         // Burst effect when charge completes
         val burstConfig = ParticleSystem.IMPACT_SMALL.copy(count = 12, speed = 150f..250f)
         emit(position, burstConfig, towerType.baseColor)
+
+        // Audio: Charge complete sound
+        AudioEventHandler.onTowerChargeComplete(entityId, position, towerType)
     }
 
     private fun getAngleRange(direction: Vector2, spread: Float): ClosedFloatingPointRange<Float> {
@@ -131,6 +153,9 @@ class VFXManager {
 
     fun onEnemySpawn(position: Vector2) {
         emit(position, ParticleSystem.SPAWN)
+
+        // Audio: Enemy spawn sound
+        AudioEventHandler.onEnemySpawn(position)
     }
 
     fun onEnemyDeath(position: Vector2, color: Color, isBoss: Boolean = false) {
@@ -147,6 +172,9 @@ class VFXManager {
             // Small shake on enemy death
             camera?.shake(1.5f, 0.08f)
         }
+
+        // Audio: Enemy death sound
+        AudioEventHandler.onEnemyDeath(position, isBoss)
     }
 
     fun onMiniBossDeath(position: Vector2, color: Color) {
@@ -155,11 +183,17 @@ class VFXManager {
         emit(position, config, color)
         particleSystem.emitCircle(position, 40f, ParticleSystem.EXPLOSION.copy(count = 16), color)
         camera?.shake(8f, 0.25f)
+
+        // Audio: Mini-boss death sound
+        AudioEventHandler.onMiniBossDeath(position)
     }
 
     fun onEnemyHit(position: Vector2, damageType: DamageType) {
         val config = ParticleSystem.IMPACT_SMALL.copy(count = 5)
         emit(position, config, getColorForDamageType(damageType))
+
+        // Audio: Enemy hit sound (rate limited in handler)
+        AudioEventHandler.onEnemyHit(position, damageType)
     }
 
     fun onEnemyReachedEnd(position: Vector2) {
@@ -171,6 +205,9 @@ class VFXManager {
         emit(position, config)
         // Screen shake when enemy reaches end (damage taken!)
         camera?.shake(5f, 0.15f)
+
+        // Audio: Enemy reached end sound
+        AudioEventHandler.onEnemyReachedEnd(position)
     }
 
     fun onElementalDeath(position: Vector2, damageType: DamageType) {
@@ -184,29 +221,47 @@ class VFXManager {
         }
         emit(position, config)
         camera?.shake(3f, 0.1f)
+
+        // Audio: Elemental death sound
+        AudioEventHandler.onElementalDeath(position, damageType)
     }
 
     // ===== Status Effect Visuals =====
 
     fun onSlowApplied(position: Vector2) {
         emit(position, ParticleSystem.FREEZE.copy(count = 5))
+
+        // Audio: Slow applied sound
+        AudioEventHandler.onSlowApplied(position)
     }
 
     fun onBurnTick(position: Vector2) {
         emit(position, ParticleSystem.FIRE.copy(count = 2))
+
+        // Audio: Burn tick sound (rate limited in handler)
+        AudioEventHandler.onBurnTick(position)
     }
 
     fun onPoisonTick(position: Vector2) {
         emit(position, ParticleSystem.POISON.copy(count = 1))
+
+        // Audio: Poison tick sound (rate limited in handler)
+        AudioEventHandler.onPoisonTick(position)
     }
 
     fun onStunApplied(position: Vector2) {
         val config = ParticleSystem.ELECTRIC.copy(count = 8)
         emit(position, config)
+
+        // Audio: Stun applied sound
+        AudioEventHandler.onStunApplied(position)
     }
 
     fun onHeal(position: Vector2) {
         emit(position, ParticleSystem.HEAL)
+
+        // Audio: Heal sound
+        AudioEventHandler.onHeal(position)
     }
 
     // ===== Tower Effects =====
@@ -214,6 +269,9 @@ class VFXManager {
     fun onTowerPlace(position: Vector2, towerType: TowerType) {
         val config = ParticleSystem.SPAWN.copy(count = 15)
         emit(position, config, towerType.baseColor)
+
+        // Audio: Tower place sound
+        AudioEventHandler.onTowerPlace(position, towerType)
     }
 
     fun onTowerUpgrade(position: Vector2, towerType: TowerType) {
@@ -240,6 +298,9 @@ class VFXManager {
 
         // Small screen feedback
         camera?.shake(2f, 0.1f)
+
+        // Audio: Tower upgrade sound
+        AudioEventHandler.onTowerUpgrade(position, towerType)
     }
 
     fun onTowerSell(position: Vector2, towerType: TowerType? = null) {
@@ -262,6 +323,9 @@ class VFXManager {
             lifetime = 0.3f..0.5f
         )
         emit(position, goldBurst)
+
+        // Audio: Tower sell sound
+        AudioEventHandler.onTowerSell(position, towerType)
     }
 
     // ===== Aura Effects =====
@@ -278,10 +342,16 @@ class VFXManager {
             // Add an expanding ring effect
             particleSystem.emitCircle(point, 25f, ParticleSystem.TRAIL.copy(count = 12), Color.NEON_GREEN.copy())
         }
+
+        // Audio: Wave start sound
+        AudioEventHandler.onWaveStart(spawnPoints)
     }
 
     fun onWaveComplete() {
         // Celebration burst effect (call this with all tower positions)
+
+        // Audio: Wave complete sound
+        AudioEventHandler.onWaveComplete()
     }
 
     fun onWaveCelebration(towerPositions: List<Vector2>) {
@@ -301,6 +371,9 @@ class VFXManager {
             particleSystem.emitCircle(center, radius, config, Color.NEON_YELLOW.copy())
         }
         camera?.shake(10f, 0.5f)
+
+        // Audio: Victory sound and music
+        AudioEventHandler.onVictory(centerX, centerY)
     }
 
     fun onGameOver(centerX: Float, centerY: Float) {
@@ -308,6 +381,9 @@ class VFXManager {
         val center = Vector2(centerX, centerY)
         emit(center, ParticleSystem.DEATH_BOSS.copy(count = 80), Color.NEON_MAGENTA.copy())
         camera?.shake(20f, 0.6f)
+
+        // Audio: Game over sound and music
+        AudioEventHandler.onGameOver(centerX, centerY)
     }
 
     // ===== Ambient Effects =====

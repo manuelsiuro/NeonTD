@@ -13,6 +13,8 @@ import androidx.activity.OnBackPressedCallback
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import com.msa.neontd.engine.audio.AudioManager
+import com.msa.neontd.engine.audio.AudioStateListener
 import com.msa.neontd.engine.core.GameState
 import com.msa.neontd.engine.core.GameStateManager
 import com.msa.neontd.engine.graphics.GLRenderer
@@ -98,6 +100,10 @@ class GameActivity : ComponentActivity() {
 
         // Step 6: Setup back button handling for pause/resume
         setupBackPressHandler()
+
+        // Step 7: Initialize audio system
+        AudioManager.initialize(this)
+        GameStateManager.addListener(AudioStateListener)
     }
 
     /**
@@ -198,6 +204,9 @@ class GameActivity : ComponentActivity() {
 
         // Re-request insets on resume (important for configuration changes)
         ViewCompat.requestApplyInsets(glSurfaceView)
+
+        // Resume audio
+        AudioManager.onResume()
     }
 
     override fun onPause() {
@@ -208,6 +217,16 @@ class GameActivity : ComponentActivity() {
         if (GameStateManager.isPlaying()) {
             GameStateManager.transitionTo(GameState.PAUSED)
         }
+
+        // Pause audio
+        AudioManager.onPause()
+    }
+
+    override fun onDestroy() {
+        // Remove audio state listener and release audio resources
+        GameStateManager.removeListener(AudioStateListener)
+        AudioManager.release()
+        super.onDestroy()
     }
 
     private fun enableImmersiveMode() {
