@@ -137,6 +137,13 @@ class GameWorld(
     var onTowerPlaced: ((Int, Int, com.msa.neontd.util.Vector2) -> Unit)? = null
     var onTowerTapped: (() -> Unit)? = null
 
+    // Achievement callbacks
+    var onTowerPlacedForAchievement: ((TowerType) -> Unit)? = null
+    var onTowerUpgradedForAchievement: ((Int, Boolean) -> Unit)? = null  // (cost, isMaxLevel)
+    var onTowerSoldForAchievement: ((Int) -> Unit)? = null  // (sellValue)
+    var onEnemyKilledForAchievement: ((EnemyType, Int) -> Unit)? = null  // (type, gold)
+    var onDamageTakenForAchievement: ((Int) -> Unit)? = null  // (damage)
+
     fun initialize() {
         Log.d(TAG, "Initializing GameWorld")
 
@@ -158,6 +165,9 @@ class GameWorld(
                 }
                 waveManager.onEnemyReachedEnd(damage)
                 onHealthChanged?.invoke(waveManager.playerHealth)
+
+                // Notify achievement system
+                onDamageTakenForAchievement?.invoke(damage)
             },
             onEnemyDied = { entity, gold ->
                 // Get position and color for death VFX
@@ -193,6 +203,11 @@ class GameWorld(
                 }
                 waveManager.onEnemyKilled(gold)
                 onGoldChanged?.invoke(waveManager.totalGold)
+
+                // Notify achievement system
+                if (enemy != null) {
+                    onEnemyKilledForAchievement?.invoke(enemy.type, gold)
+                }
             }
         )
         projectileSystem = ProjectileSystem(projectileFactory)
@@ -361,6 +376,9 @@ class GameWorld(
             // Notify tutorial system
             onTowerPlaced?.invoke(gridX, gridY, towerPos)
 
+            // Notify achievement system
+            onTowerPlacedForAchievement?.invoke(towerType)
+
             // Recalculate paths since grid changed
             pathManager.onMapChanged()
             return true
@@ -477,6 +495,10 @@ class GameWorld(
             // Update the upgrade panel with new data
             val upgradeData = towerFactory.getUpgradeData(entity)
             onUpgradePanelChanged?.invoke(upgradeData)
+
+            // Notify achievement system
+            val isMaxLevel = upgradeData?.currentLevel == TowerUpgradeComponent.MAX_LEVEL
+            onTowerUpgradedForAchievement?.invoke(upgradeCost, isMaxLevel)
         } else {
             // Refund if upgrade failed
             waveManager.addGold(upgradeCost)
@@ -513,6 +535,9 @@ class GameWorld(
             // Add gold to player
             waveManager.addGold(sellValue)
             onGoldChanged?.invoke(waveManager.totalGold)
+
+            // Notify achievement system
+            onTowerSoldForAchievement?.invoke(sellValue)
 
             // Recalculate paths since grid changed
             pathManager.onMapChanged()

@@ -20,6 +20,7 @@ import com.msa.neontd.game.editor.CustomLevelConverter
 import com.msa.neontd.game.level.LevelDefinition
 import com.msa.neontd.game.level.LevelRegistry
 import com.msa.neontd.game.level.ProgressionRepository
+import com.msa.neontd.game.achievements.AchievementTracker
 import com.msa.neontd.game.tutorial.HighlightTarget
 import com.msa.neontd.game.tutorial.TutorialManager
 import com.msa.neontd.game.tutorial.TutorialRepository
@@ -80,6 +81,9 @@ class GLRenderer(
     // Tutorial system
     private var tutorialManager: TutorialManager? = null
     private lateinit var tutorialRepository: TutorialRepository
+
+    // Achievement system
+    private lateinit var achievementTracker: AchievementTracker
 
     // Safe area insets for edge-to-edge display
     private var safeAreaInsets = SafeAreaInsets.ZERO
@@ -293,6 +297,9 @@ class GLRenderer(
         tutorialRepository = TutorialRepository(context)
         initializeTutorial()
 
+        // Initialize achievement system
+        initializeAchievements()
+
         // Initialize bloom effect (will be sized in onScreenSizeChanged)
         bloomEffect = BloomEffect(context)
         bloomEffect.threshold = 0.3f
@@ -375,6 +382,11 @@ class GLRenderer(
                 gameHUD.isVictory = false
                 gameHUD.isPaused = false
                 onGameOver?.invoke()
+
+                // Notify achievement tracker of defeat
+                if (::achievementTracker.isInitialized) {
+                    achievementTracker.onDefeat()
+                }
             }
             GameState.VICTORY -> {
                 gameHUD.isVictory = true
@@ -634,7 +646,7 @@ class GLRenderer(
     private fun saveVictoryProgress(level: LevelDefinition) {
         val score = calculateScore()
         val repo = ProgressionRepository(context)
-        repo.onLevelCompleted(
+        val updatedProgression = repo.onLevelCompleted(
             levelId = level.id,
             score = score,
             wavesCompleted = gameWorld.waveManager.currentWave,
@@ -642,6 +654,24 @@ class GLRenderer(
             totalHealth = level.startingHealth
         )
         Log.d(TAG, "Victory progress saved for level ${level.id}: score=$score")
+
+        // Calculate stars for achievement tracking
+        val healthPercent = gameWorld.waveManager.playerHealth.toFloat() / level.startingHealth
+        val stars = when {
+            healthPercent >= 0.8f -> 3
+            healthPercent >= 0.4f -> 2
+            else -> 1
+        }
+
+        // Notify achievement tracker of victory
+        if (::achievementTracker.isInitialized) {
+            achievementTracker.onVictory(
+                levelId = level.id,
+                stars = stars,
+                currentHealth = gameWorld.waveManager.playerHealth,
+                startingHealth = level.startingHealth
+            )
+        }
     }
 
     /**
@@ -714,6 +744,58 @@ class GLRenderer(
             Log.d(TAG, "Tutorial not needed - already completed or not tutorial level")
             tutorialManager = null
         }
+    }
+
+    // ============================================
+    // ACHIEVEMENT SYSTEM METHODS
+    // ============================================
+
+    /**
+     * Initialize the achievement tracking system and wire up callbacks.
+     */
+    private fun initializeAchievements() {
+        achievementTracker = AchievementTracker(context)
+
+        // Notify tracker of game start
+        currentLevel?.let { level ->
+            achievementTracker.onGameStart(level)
+        }
+
+        // Wire up GameWorld callbacks to achievement tracker
+        gameWorld.onTowerPlacedForAchievement = { towerType ->
+            achievementTracker.onTowerPlaced(towerType)
+        }
+
+        gameWorld.onTowerUpgradedForAchievement = { cost, isMaxLevel ->
+            achievementTracker.onTowerUpgraded(cost, isMaxLevel)
+        }
+
+        gameWorld.onTowerSoldForAchievement = { sellValue ->
+            achievementTracker.onTowerSold(sellValue)
+        }
+
+        gameWorld.onEnemyKilledForAchievement = { enemyType, goldReward ->
+            achievementTracker.onEnemyKilled(enemyType, goldReward)
+        }
+
+        gameWorld.onDamageTakenForAchievement = { damage ->
+            achievementTracker.onDamageTaken(damage)
+        }
+
+        // Track gold changes for max gold achievement
+        val originalGoldCallback = gameWorld.onGoldChanged
+        gameWorld.onGoldChanged = { gold ->
+            originalGoldCallback?.invoke(gold)
+            achievementTracker.onGoldChanged(gold)
+        }
+
+        // Achievement unlock notification callback
+        achievementTracker.onAchievementUnlocked = { achievement ->
+            Log.d(TAG, "Achievement unlocked: ${achievement.name}")
+            // TODO: Queue notification in HUD for display
+        }
+
+        Log.d(TAG, "Achievement system initialized")
     }
 
     /**

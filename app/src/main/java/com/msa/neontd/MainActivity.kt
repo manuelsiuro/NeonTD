@@ -44,6 +44,7 @@ import com.msa.neontd.sharing.QRCodeGenerator
 import com.msa.neontd.sharing.ShareManager
 import com.msa.neontd.ui.EncyclopediaScreen
 import com.msa.neontd.ui.LevelSelectionScreen
+import com.msa.neontd.ui.achievements.AchievementsScreen
 import com.msa.neontd.ui.editor.LevelEditorHubScreen
 import com.msa.neontd.ui.editor.LevelEditorScreen
 import com.msa.neontd.ui.screens.SettingsScreen
@@ -66,6 +67,7 @@ private enum class MainMenuNavigation {
     MENU,
     LEVEL_SELECT,
     ENCYCLOPEDIA,
+    ACHIEVEMENTS,
     LEVEL_EDITOR_HUB,
     LEVEL_EDITOR_NEW,
     LEVEL_EDITOR_EDIT,
@@ -137,6 +139,9 @@ class MainActivity : ComponentActivity() {
                             onEncyclopediaClick = {
                                 navigation = MainMenuNavigation.ENCYCLOPEDIA
                             },
+                            onAchievementsClick = {
+                                navigation = MainMenuNavigation.ACHIEVEMENTS
+                            },
                             onLevelEditorClick = {
                                 navigation = MainMenuNavigation.LEVEL_EDITOR_HUB
                             },
@@ -180,6 +185,17 @@ class MainActivity : ComponentActivity() {
                             navigation = MainMenuNavigation.MENU
                         }
                         EncyclopediaScreen(
+                            onBackClick = {
+                                navigation = MainMenuNavigation.MENU
+                            }
+                        )
+                    }
+
+                    MainMenuNavigation.ACHIEVEMENTS -> {
+                        BackHandler {
+                            navigation = MainMenuNavigation.MENU
+                        }
+                        AchievementsScreen(
                             onBackClick = {
                                 navigation = MainMenuNavigation.MENU
                             }
@@ -408,10 +424,14 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+// Neon gold color for achievements
+private val NeonGold = Color(0xFFFFD700)
+
 @Composable
 fun MainMenuScreen(
     onPlayClick: () -> Unit,
     onEncyclopediaClick: () -> Unit = {},
+    onAchievementsClick: () -> Unit = {},
     onLevelEditorClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {}
 ) {
@@ -505,6 +525,29 @@ fun MainMenuScreen(
             ) {
                 Text(
                     text = "ENCYCLOPEDIA",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Achievements Button
+            Button(
+                onClick = {
+                    AudioEventHandler.onButtonClick()
+                    onAchievementsClick()
+                },
+                modifier = Modifier
+                    .fillMaxWidth(0.6f)
+                    .height(56.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = NeonGold.copy(alpha = 0.2f),
+                    contentColor = NeonGold
+                )
+            ) {
+                Text(
+                    text = "ACHIEVEMENTS",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
