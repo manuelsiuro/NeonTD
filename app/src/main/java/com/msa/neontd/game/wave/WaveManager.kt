@@ -1,6 +1,7 @@
 package com.msa.neontd.game.wave
 
 import com.msa.neontd.engine.vfx.VFXManager
+import com.msa.neontd.game.challenges.ChallengeModifiers
 import com.msa.neontd.game.entities.EnemyFactory
 import com.msa.neontd.game.entities.EnemyType
 import com.msa.neontd.util.Vector2
@@ -39,6 +40,15 @@ class WaveManager(
     // VFX manager for wave effects - set by GameWorld
     var vfxManager: VFXManager? = null
 
+    // Endless mode flag - set by challenge config
+    var isEndlessMode: Boolean = false
+
+    // Score tracking for challenges
+    var totalScore: Int = 0
+        private set
+    var totalEnemiesKilled: Int = 0
+        private set
+
     var currentWave: Int = 0
         private set
 
@@ -76,6 +86,9 @@ class WaveManager(
 
         currentWave++
 
+        // Notify challenge modifiers of current wave (for inflation calculations)
+        ChallengeModifiers.setCurrentWave(currentWave)
+
         // Trigger wave start VFX at spawn points
         if (spawnPoints.isNotEmpty()) {
             vfxManager?.onWaveStart(spawnPoints)
@@ -89,13 +102,18 @@ class WaveManager(
         val effectiveWaveMultiplier = (currentWave * difficultyMultiplier).toInt().coerceAtLeast(1)
         enemyFactory.setWaveMultiplier(effectiveWaveMultiplier)
 
+        // Get swarm mode multiplier (3x enemies if active)
+        val enemyCountMultiplier = ChallengeModifiers.getEnemyCountMultiplier().toInt()
+
         // Build spawn queue
         spawnQueue.clear()
         var accumulatedDelay = 0f
 
         currentWaveDefinition?.spawns?.forEach { spawn ->
             accumulatedDelay += spawn.delay
-            for (i in 0 until spawn.count) {
+            // Apply swarm mode enemy count multiplier
+            val actualCount = spawn.count * enemyCountMultiplier
+            for (i in 0 until actualCount) {
                 // Distribute enemies across available paths for multi-spawn maps
                 val assignedPath = if (pathCount > 1) i % pathCount else spawn.pathIndex
                 spawnQueue.add(QueuedSpawn(
@@ -149,11 +167,21 @@ class WaveManager(
     fun onEnemyKilled(goldReward: Int) {
         enemiesAlive--
         totalGold += goldReward
+        totalEnemiesKilled++
+
+        // Track score: gold reward + wave bonus
+        totalScore += goldReward + currentWave
     }
 
     fun onEnemyReachedEnd(damage: Int) {
         enemiesAlive--
-        playerHealth -= damage
+
+        // Check ONE_LIFE modifier - instant death on first leak
+        if (ChallengeModifiers.isOneLife()) {
+            playerHealth = 0
+        } else {
+            playerHealth -= damage
+        }
 
         if (playerHealth <= 0) {
             // Game over state is handled by GameStateManager via callback
@@ -190,9 +218,26 @@ class WaveManager(
         state = WaveState.WAITING
         playerHealth = 20
         totalGold = 100
+        totalScore = 0
+        totalEnemiesKilled = 0
+        isEndlessMode = false
         spawnQueue.clear()
         enemiesAlive = 0
         enemiesSpawned = 0
+    }
+
+    /**
+     * Calculate final challenge score.
+     * Score formula:
+     * - Wave score: wave^2 * 10 (rewards longevity)
+     * - Health bonus: remaining health * 50
+     * - Efficiency bonus: (wave * 100) / towers placed
+     */
+    fun calculateFinalScore(towerCount: Int): Int {
+        val waveScore = currentWave * currentWave * 10
+        val healthBonus = playerHealth.coerceAtLeast(0) * 50
+        val efficiencyBonus = if (towerCount > 0) (currentWave * 100) / towerCount else 0
+        return totalScore + waveScore + healthBonus + efficiencyBonus
     }
 
     /**

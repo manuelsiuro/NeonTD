@@ -26,6 +26,7 @@ import com.msa.neontd.game.world.GridMap
 import com.msa.neontd.game.world.PathManager
 import com.msa.neontd.engine.vfx.VFXManager
 import com.msa.neontd.engine.graphics.ShapeType
+import com.msa.neontd.game.challenges.ChallengeModifiers
 import com.msa.neontd.util.Color
 import com.msa.neontd.util.Vector2
 import kotlin.math.PI
@@ -355,9 +356,18 @@ class GameWorld(
             return false
         }
 
-        val cost = towerType.baseCost
+        // Check if tower type is allowed by challenge modifiers
+        if (!ChallengeModifiers.isTowerAllowed(towerType)) {
+            Log.d(TAG, "${towerType.displayName} is restricted by challenge modifiers")
+            return false
+        }
+
+        // Apply challenge cost multiplier
+        val baseCost = towerType.baseCost
+        val costMultiplier = ChallengeModifiers.getTowerCostMultiplier()
+        val cost = (baseCost * costMultiplier).toInt()
         val currentGold = waveManager.totalGold
-        Log.d(TAG, "Attempting to place ${towerType.displayName} (cost: $cost, gold: $currentGold)")
+        Log.d(TAG, "Attempting to place ${towerType.displayName} (base: $baseCost, mult: $costMultiplier, cost: $cost, gold: $currentGold)")
 
         if (!waveManager.spendGold(cost)) {
             Log.d(TAG, "Not enough gold for ${towerType.displayName} (need $cost, have $currentGold)")
@@ -462,6 +472,12 @@ class GameWorld(
      * @return True if upgrade was successful
      */
     fun upgradeSelectedTower(stat: UpgradeableStat): Boolean {
+        // Check if upgrades are disabled by challenge modifiers
+        if (ChallengeModifiers.areUpgradesDisabled()) {
+            Log.d(TAG, "Upgrades are disabled by challenge modifiers")
+            return false
+        }
+
         val entity = selectedTowerEntity ?: return false
         if (!world.isAlive(entity)) {
             closeUpgradePanel()
@@ -1455,12 +1471,24 @@ class GameWorld(
     }
 
     fun getSelectedTowerCost(): Int {
-        return selectedTowerType?.baseCost ?: 0
+        val baseCost = selectedTowerType?.baseCost ?: 0
+        if (baseCost == 0) return 0
+        // Apply challenge cost multiplier
+        val costMultiplier = ChallengeModifiers.getTowerCostMultiplier()
+        return (baseCost * costMultiplier).toInt()
     }
 
     fun canAffordSelectedTower(): Boolean {
         val cost = getSelectedTowerCost()
         return cost > 0 && waveManager.totalGold >= cost
+    }
+
+    /**
+     * Check if the selected tower type is allowed by challenge modifiers.
+     */
+    fun isSelectedTowerAllowed(): Boolean {
+        val towerType = selectedTowerType ?: return false
+        return ChallengeModifiers.isTowerAllowed(towerType)
     }
 
     fun reset() {

@@ -20,6 +20,9 @@ import com.msa.neontd.engine.core.GameStateManager
 import com.msa.neontd.engine.graphics.GLRenderer
 import com.msa.neontd.engine.graphics.NeonGLSurfaceView
 import com.msa.neontd.engine.graphics.SafeAreaInsets
+import com.msa.neontd.game.challenges.ChallengeConfig
+import com.msa.neontd.game.challenges.ChallengeConverter
+import com.msa.neontd.game.challenges.ChallengeModifiers
 import com.msa.neontd.game.editor.CustomLevelConverter
 import com.msa.neontd.game.editor.CustomLevelData
 import kotlinx.serialization.json.Json
@@ -46,6 +49,12 @@ class GameActivity : ComponentActivity() {
          * In test mode, level completion doesn't save progression.
          */
         const val EXTRA_IS_TEST_MODE = "extra_is_test_mode"
+
+        /**
+         * Intent extra key for challenge config JSON data.
+         * When present, loads a challenge with modifiers applied.
+         */
+        const val EXTRA_CHALLENGE_CONFIG_JSON = "extra_challenge_config_json"
     }
 
     private lateinit var glSurfaceView: NeonGLSurfaceView
@@ -62,12 +71,35 @@ class GameActivity : ComponentActivity() {
 
         // Step 2: Parse level configuration from intent
         val customLevelJson = intent.getStringExtra(EXTRA_CUSTOM_LEVEL_JSON)
+        val challengeConfigJson = intent.getStringExtra(EXTRA_CHALLENGE_CONFIG_JSON)
         val isTestMode = intent.getBooleanExtra(EXTRA_IS_TEST_MODE, false)
 
-        val customLevelConfig = if (customLevelJson != null) {
-            // Parse and convert custom level
+        val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+
+        // Parse challenge config if present
+        val challengeGameConfig = if (challengeConfigJson != null) {
             try {
-                val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+                val challengeConfig = json.decodeFromString<ChallengeConfig>(challengeConfigJson)
+                Log.d(TAG, "Loading challenge: ${challengeConfig.challengeDefinition.name}")
+
+                // Apply challenge modifiers
+                ChallengeModifiers.setActiveModifiers(challengeConfig.challengeDefinition.modifiers)
+
+                // Convert to game config
+                ChallengeConverter.toGameConfig(challengeConfig.challengeDefinition)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to parse challenge config JSON", e)
+                null
+            }
+        } else {
+            // Clear any previous challenge modifiers
+            ChallengeModifiers.clearModifiers()
+            null
+        }
+
+        val customLevelConfig = if (customLevelJson != null && challengeGameConfig == null) {
+            // Parse and convert custom level (only if no challenge config)
+            try {
                 val customLevelData = json.decodeFromString<CustomLevelData>(customLevelJson)
                 Log.d(TAG, "Loading custom level: ${customLevelData.name}")
                 CustomLevelConverter.toGameConfig(customLevelData, isTestMode)
@@ -79,9 +111,9 @@ class GameActivity : ComponentActivity() {
             null
         }
 
-        // Step 3: Initialize renderer - either with custom level or level ID
+        // Step 3: Initialize renderer - with challenge, custom level, or level ID
         val levelId = intent.getIntExtra(EXTRA_LEVEL_ID, 1)
-        renderer = GLRenderer(this, levelId, customLevelConfig)
+        renderer = GLRenderer(this, levelId, customLevelConfig, challengeGameConfig)
         glSurfaceView = NeonGLSurfaceView(this, renderer)
 
         // Setup quit to menu callback
@@ -240,6 +272,8 @@ class GameActivity : ComponentActivity() {
     override fun onDestroy() {
         // Remove audio state listener
         GameStateManager.removeListener(AudioStateListener)
+        // Clear challenge modifiers
+        ChallengeModifiers.clearModifiers()
         // Reset game state for clean next launch (don't release AudioManager - MainActivity owns it)
         GameStateManager.reset()
         super.onDestroy()

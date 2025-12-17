@@ -10,6 +10,7 @@ import com.msa.neontd.game.world.GridMap
 import com.msa.neontd.game.world.GridPosition
 import com.msa.neontd.game.world.PathManager
 import com.msa.neontd.engine.vfx.VFXManager
+import com.msa.neontd.game.challenges.ChallengeModifiers
 import com.msa.neontd.util.Vector2
 
 class EnemyFactory(
@@ -43,9 +44,15 @@ class EnemyFactory(
             position = spawnPos.copy()
         ))
 
-        // Calculate scaled stats
-        val scaledHealth = type.baseHealth * waveMultiplier
-        val scaledArmor = type.baseArmor * (1f + (waveNumber - 1) * 0.05f)
+        // Calculate scaled stats with challenge modifiers
+        val challengeHealthMult = ChallengeModifiers.getEnemyHealthMultiplier()
+        val challengeSpeedMult = ChallengeModifiers.getEnemySpeedMultiplier()
+        val challengeArmorMult = ChallengeModifiers.getEnemyArmorMultiplier()
+        val challengeGoldMult = ChallengeModifiers.getEnemyGoldMultiplier()
+
+        val scaledHealth = type.baseHealth * waveMultiplier * challengeHealthMult
+        val scaledArmor = type.baseArmor * (1f + (waveNumber - 1) * 0.05f) * challengeArmorMult
+        val scaledSpeed = type.baseSpeed * challengeSpeedMult
 
         // Health
         val healthComponent = if (type == EnemyType.SHIELDED) {
@@ -83,23 +90,23 @@ class EnemyFactory(
             shapeType = type.shape
         ))
 
-        // Velocity
+        // Velocity (with challenge speed modifier)
         world.addComponent(entity, VelocityComponent(
-            maxSpeed = type.baseSpeed
+            maxSpeed = scaledSpeed
         ))
 
-        // Enemy identity
+        // Enemy identity (with challenge gold modifier)
         world.addComponent(entity, EnemyComponent(
             type = type,
             pathIndex = pathIndex,
-            goldValue = (type.goldReward * waveMultiplier).toInt(),
+            goldValue = (type.goldReward * waveMultiplier * challengeGoldMult).toInt(),
             waveNumber = waveNumber
         ))
 
-        // Movement
+        // Movement (with challenge speed modifier)
         world.addComponent(entity, EnemyMovementComponent(
-            speed = type.baseSpeed,
-            baseSpeed = type.baseSpeed,
+            speed = scaledSpeed,
+            baseSpeed = scaledSpeed,
             isFlying = type == EnemyType.FLYING
         ))
 

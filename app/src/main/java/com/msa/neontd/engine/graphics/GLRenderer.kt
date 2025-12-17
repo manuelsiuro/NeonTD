@@ -16,6 +16,8 @@ import com.msa.neontd.engine.shaders.ShaderManager
 import com.msa.neontd.engine.shaders.ShaderProgram
 import com.msa.neontd.engine.vfx.BloomEffect
 import com.msa.neontd.game.GameWorld
+import com.msa.neontd.game.challenges.ChallengeConverter
+import com.msa.neontd.game.challenges.ChallengeRepository
 import com.msa.neontd.game.editor.CustomLevelConverter
 import com.msa.neontd.game.level.LevelDefinition
 import com.msa.neontd.game.level.LevelRegistry
@@ -36,7 +38,8 @@ import android.opengl.Matrix
 class GLRenderer(
     private val context: Context,
     private val levelId: Int = 1,
-    private val customLevelConfig: CustomLevelConverter.CustomLevelConfig? = null
+    private val customLevelConfig: CustomLevelConverter.CustomLevelConfig? = null,
+    private val challengeGameConfig: ChallengeConverter.ChallengeGameConfig? = null
 ) : GLSurfaceView.Renderer {
 
     companion object {
@@ -224,18 +227,36 @@ class GLRenderer(
         // Initialize input manager
         inputManager = InputManager(camera)
 
-        // Load level - either custom or from registry
+        // Load level - challenge, custom, or from registry
         val customGridMap: GridMap?
-        if (customLevelConfig != null) {
-            // Use custom level configuration
-            currentLevel = customLevelConfig.levelDefinition
-            customGridMap = customLevelConfig.gridMap
-            Log.d(TAG, "Loading custom level: ${currentLevel?.name}")
-        } else {
-            // Load from level registry
-            currentLevel = LevelRegistry.getLevel(levelId) ?: LevelRegistry.getFirstLevel()
-            customGridMap = null
-            Log.d(TAG, "Loading level ${currentLevel?.id}: ${currentLevel?.name}")
+        val isEndlessMode: Boolean
+        val activeChallengeId: String?
+
+        when {
+            challengeGameConfig != null -> {
+                // Use challenge game configuration
+                currentLevel = challengeGameConfig.levelDefinition
+                customGridMap = challengeGameConfig.gridMap
+                isEndlessMode = challengeGameConfig.isEndlessMode
+                activeChallengeId = challengeGameConfig.challengeId
+                Log.d(TAG, "Loading challenge: ${currentLevel?.name}, endless=$isEndlessMode")
+            }
+            customLevelConfig != null -> {
+                // Use custom level configuration
+                currentLevel = customLevelConfig.levelDefinition
+                customGridMap = customLevelConfig.gridMap
+                isEndlessMode = false
+                activeChallengeId = null
+                Log.d(TAG, "Loading custom level: ${currentLevel?.name}")
+            }
+            else -> {
+                // Load from level registry
+                currentLevel = LevelRegistry.getLevel(levelId) ?: LevelRegistry.getFirstLevel()
+                customGridMap = null
+                isEndlessMode = false
+                activeChallengeId = null
+                Log.d(TAG, "Loading level ${currentLevel?.id}: ${currentLevel?.name}")
+            }
         }
 
         // Initialize game world with level configuration
@@ -247,6 +268,11 @@ class GLRenderer(
             customWaveDefinitions = customLevelConfig?.waveDefinitions
         )
         gameWorld.initialize()
+
+        // Configure wave manager for endless mode if needed
+        if (isEndlessMode) {
+            gameWorld.waveManager.isEndlessMode = true
+        }
 
         // Connect callbacks
         gameWorld.onGoldChanged = { gold ->
@@ -387,6 +413,9 @@ class GLRenderer(
                 if (::achievementTracker.isInitialized) {
                     achievementTracker.onDefeat()
                 }
+
+                // Record challenge attempt (failed)
+                recordChallengeResult(completed = false)
             }
             GameState.VICTORY -> {
                 gameHUD.isVictory = true
@@ -401,6 +430,9 @@ class GLRenderer(
                         }
                     }
                 }
+
+                // Record challenge attempt (completed)
+                recordChallengeResult(completed = true)
             }
             GameState.PAUSED -> {
                 gameHUD.isPaused = true
@@ -670,6 +702,45 @@ class GLRenderer(
                 stars = stars,
                 currentHealth = gameWorld.waveManager.playerHealth,
                 startingHealth = level.startingHealth
+            )
+        }
+    }
+
+    /**
+     * Record the result of a challenge attempt to the repository.
+     * Only records if a challenge is active.
+     */
+    private fun recordChallengeResult(completed: Boolean) {
+        val config = challengeGameConfig ?: return
+
+        // Count towers for efficiency score
+        var towerCount = 0
+        gameWorld.world.forEach<com.msa.neontd.game.entities.TowerComponent> { _, _ ->
+            towerCount++
+        }
+
+        val finalScore = gameWorld.waveManager.calculateFinalScore(towerCount)
+        val currentWave = gameWorld.waveManager.currentWave
+
+        Log.d(TAG, "Recording challenge result: id=${config.challengeId}, completed=$completed, score=$finalScore, wave=$currentWave")
+
+        val repo = ChallengeRepository(context)
+
+        if (config.isEndlessMode) {
+            // Record endless mode high score
+            repo.recordEndlessScore(
+                mapId = config.levelDefinition.mapId.ordinal,
+                wave = currentWave,
+                score = finalScore,
+                modifiers = config.modifiers.map { it.type.name }
+            )
+        } else {
+            // Record challenge attempt
+            repo.recordAttempt(
+                challengeId = config.challengeId,
+                score = finalScore,
+                wave = currentWave,
+                completed = completed
             )
         }
     }

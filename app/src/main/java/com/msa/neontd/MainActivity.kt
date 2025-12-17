@@ -42,9 +42,11 @@ import com.msa.neontd.game.editor.CustomLevelRepository
 import com.msa.neontd.game.level.ProgressionRepository
 import com.msa.neontd.sharing.QRCodeGenerator
 import com.msa.neontd.sharing.ShareManager
+import com.msa.neontd.game.challenges.ChallengeConfig
 import com.msa.neontd.ui.EncyclopediaScreen
 import com.msa.neontd.ui.LevelSelectionScreen
 import com.msa.neontd.ui.achievements.AchievementsScreen
+import com.msa.neontd.ui.challenges.ChallengesScreen
 import com.msa.neontd.ui.editor.LevelEditorHubScreen
 import com.msa.neontd.ui.editor.LevelEditorScreen
 import com.msa.neontd.ui.screens.SettingsScreen
@@ -66,6 +68,7 @@ private val NeonGreen = Color(0xFF00FF00)
 private enum class MainMenuNavigation {
     MENU,
     LEVEL_SELECT,
+    CHALLENGES,
     ENCYCLOPEDIA,
     ACHIEVEMENTS,
     LEVEL_EDITOR_HUB,
@@ -136,6 +139,9 @@ class MainActivity : ComponentActivity() {
                                 progression = progressionRepository.loadProgression()
                                 navigation = MainMenuNavigation.LEVEL_SELECT
                             },
+                            onChallengesClick = {
+                                navigation = MainMenuNavigation.CHALLENGES
+                            },
                             onEncyclopediaClick = {
                                 navigation = MainMenuNavigation.ENCYCLOPEDIA
                             },
@@ -176,6 +182,25 @@ class MainActivity : ComponentActivity() {
                             },
                             onBackClick = {
                                 navigation = MainMenuNavigation.MENU
+                            }
+                        )
+                    }
+
+                    MainMenuNavigation.CHALLENGES -> {
+                        BackHandler {
+                            navigation = MainMenuNavigation.MENU
+                        }
+                        ChallengesScreen(
+                            onBackClick = {
+                                navigation = MainMenuNavigation.MENU
+                            },
+                            onPlayChallenge = { challengeConfig ->
+                                val intent = Intent(this, GameActivity::class.java)
+                                intent.putExtra(
+                                    GameActivity.EXTRA_CHALLENGE_CONFIG_JSON,
+                                    json.encodeToString(challengeConfig)
+                                )
+                                startActivity(intent)
                             }
                         )
                     }
@@ -430,6 +455,7 @@ private val NeonGold = Color(0xFFFFD700)
 @Composable
 fun MainMenuScreen(
     onPlayClick: () -> Unit,
+    onChallengesClick: () -> Unit = {},
     onEncyclopediaClick: () -> Unit = {},
     onAchievementsClick: () -> Unit = {},
     onLevelEditorClick: () -> Unit = {},
@@ -480,6 +506,29 @@ fun MainMenuScreen(
                 Text(
                     text = "PLAY",
                     fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Challenges Button
+            Button(
+                onClick = {
+                    AudioEventHandler.onButtonClick()
+                    onChallengesClick()
+                },
+                modifier = Modifier
+                    .fillMaxWidth(0.6f)
+                    .height(56.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFFF8800).copy(alpha = 0.2f),  // Orange
+                    contentColor = Color(0xFFFF8800)
+                )
+            ) {
+                Text(
+                    text = "CHALLENGES",
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
