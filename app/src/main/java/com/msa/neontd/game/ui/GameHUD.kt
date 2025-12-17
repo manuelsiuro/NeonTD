@@ -136,6 +136,12 @@ class GameHUD(
     // Restart button area (for game over/victory screens)
     private var restartButtonArea: Rectangle? = null
 
+    // Tutorial overlay state
+    private val tutorialOverlay = com.msa.neontd.game.tutorial.TutorialOverlay(screenWidth, screenHeight)
+    var tutorialStepData: com.msa.neontd.game.tutorial.TutorialStepData? = null
+    var tutorialHighlightScreenPos: com.msa.neontd.util.Vector2? = null
+    var tutorialHighlightSize: Float? = null
+
     init {
         updateTowerButtonAreas()
     }
@@ -160,6 +166,7 @@ class GameHUD(
         costDigitHeight = baseCostDigitHeight * scaleFactor
 
         updateTowerButtonAreas()
+        tutorialOverlay.updateScreenSize(width, height)
     }
 
     /**
@@ -170,6 +177,7 @@ class GameHUD(
         if (insets != safeInsets) {
             safeInsets = insets
             updateTowerButtonAreas()
+            tutorialOverlay.updateSafeAreaInsets(insets)
         }
     }
 
@@ -251,6 +259,11 @@ class GameHUD(
             if (longPressTimer >= longPressThreshold) {
                 isShowingTooltip = true
             }
+        }
+
+        // Update tutorial overlay animations
+        if (tutorialStepData != null) {
+            tutorialOverlay.update(deltaTime)
         }
     }
 
@@ -2937,6 +2950,112 @@ class GameHUD(
         val sellButton: Rectangle,
         val closeButton: Rectangle
     )
+
+    // ============================================
+    // TUTORIAL OVERLAY METHODS
+    // ============================================
+
+    /**
+     * Render the tutorial overlay on top of all other HUD elements.
+     * Should be called after the main render() method.
+     */
+    fun renderTutorialOverlay(spriteBatch: SpriteBatch, whiteTexture: Texture) {
+        val stepData = tutorialStepData ?: return
+
+        tutorialOverlay.render(
+            spriteBatch,
+            whiteTexture,
+            stepData,
+            tutorialHighlightScreenPos,
+            tutorialHighlightSize
+        )
+    }
+
+    /**
+     * Called when tutorial step changes to reset overlay animations.
+     */
+    fun onTutorialStepChanged() {
+        tutorialOverlay.onStepChanged()
+    }
+
+    /**
+     * Get the tutorial touch areas for input filtering.
+     */
+    fun getTutorialTouchAreas(): com.msa.neontd.game.tutorial.TutorialTouchAreas {
+        return com.msa.neontd.game.tutorial.TutorialTouchAreas(
+            skipButtonArea = tutorialOverlay.skipButtonArea,
+            messageBoxArea = tutorialOverlay.messageBoxArea,
+            highlightArea = tutorialHighlightScreenPos?.let { pos ->
+                tutorialHighlightSize?.let { size ->
+                    Rectangle(pos.x - size, pos.y - size, size * 2f, size * 2f)
+                }
+            },
+            screenHeight = screenHeight
+        )
+    }
+
+    /**
+     * Get the screen position of a tower button for tutorial highlighting.
+     */
+    fun getTowerButtonScreenPos(index: Int): com.msa.neontd.util.Vector2? {
+        val area = towerButtonAreas.getOrNull(index) ?: return null
+        return com.msa.neontd.util.Vector2(
+            area.x + area.width / 2f,
+            area.y + area.height / 2f
+        )
+    }
+
+    /**
+     * Get the size of a tower button for tutorial highlighting.
+     */
+    fun getTowerButtonSize(): Float {
+        return towerButtonWidth.coerceAtLeast(towerButtonHeight) * 0.6f
+    }
+
+    /**
+     * Get the screen position of the speed button for tutorial highlighting.
+     */
+    fun getSpeedButtonScreenPos(): com.msa.neontd.util.Vector2? {
+        val area = speedButtonArea ?: return null
+        return com.msa.neontd.util.Vector2(
+            area.x + area.width / 2f,
+            area.y + area.height / 2f
+        )
+    }
+
+    /**
+     * Get the size of the speed button for tutorial highlighting.
+     */
+    fun getSpeedButtonSize(): Float {
+        return iconSize * 0.5f
+    }
+
+    /**
+     * Get the screen position of the upgrade panel for tutorial highlighting.
+     */
+    fun getUpgradePanelScreenPos(): com.msa.neontd.util.Vector2? {
+        val areas = upgradePanelAreas ?: return null
+        return com.msa.neontd.util.Vector2(
+            areas.panelBounds.x + areas.panelBounds.width / 2f,
+            areas.panelBounds.y + areas.panelBounds.height / 2f
+        )
+    }
+
+    /**
+     * Get the size of the upgrade panel for tutorial highlighting.
+     */
+    fun getUpgradePanelSize(): Float {
+        val areas = upgradePanelAreas ?: return 100f * scaleFactor
+        return areas.panelBounds.width.coerceAtLeast(areas.panelBounds.height) * 0.4f
+    }
+
+    /**
+     * Check if a touch is on the tutorial skip button.
+     */
+    fun isTouchOnTutorialSkipButton(screenX: Float, screenY: Float): Boolean {
+        val touchY = screenHeight - screenY
+        return tutorialOverlay.skipButtonArea.contains(screenX, touchY)
+    }
 }
 
 /**

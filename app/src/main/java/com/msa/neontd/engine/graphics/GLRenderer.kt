@@ -20,6 +20,9 @@ import com.msa.neontd.game.editor.CustomLevelConverter
 import com.msa.neontd.game.level.LevelDefinition
 import com.msa.neontd.game.level.LevelRegistry
 import com.msa.neontd.game.level.ProgressionRepository
+import com.msa.neontd.game.tutorial.HighlightTarget
+import com.msa.neontd.game.tutorial.TutorialManager
+import com.msa.neontd.game.tutorial.TutorialRepository
 import com.msa.neontd.game.ui.GameHUD
 import com.msa.neontd.game.ui.OptionsAction
 import com.msa.neontd.game.ui.UpgradeAction
@@ -73,6 +76,10 @@ class GLRenderer(
     // Bloom post-processing
     private lateinit var bloomEffect: BloomEffect
     private var bloomEnabled: Boolean = true
+
+    // Tutorial system
+    private var tutorialManager: TutorialManager? = null
+    private lateinit var tutorialRepository: TutorialRepository
 
     // Safe area insets for edge-to-edge display
     private var safeAreaInsets = SafeAreaInsets.ZERO
@@ -282,6 +289,10 @@ class GLRenderer(
         GameStateManager.addListener(stateListener)
         GameStateManager.forceState(GameState.PLAYING)
 
+        // Initialize tutorial system
+        tutorialRepository = TutorialRepository(context)
+        initializeTutorial()
+
         // Initialize bloom effect (will be sized in onScreenSizeChanged)
         bloomEffect = BloomEffect(context)
         bloomEffect.threshold = 0.3f
@@ -327,10 +338,19 @@ class GLRenderer(
     }
 
     private fun update(deltaTime: Float) {
-        // Only update game world if playing
-        if (GameStateManager.isPlaying()) {
+        // Check if tutorial should pause the game
+        val tutorialPausesGame = tutorialManager?.shouldPauseGame == true
+
+        // Only update game world if playing AND tutorial isn't pausing
+        if (GameStateManager.isPlaying() && !tutorialPausesGame) {
             gameWorld.update(deltaTime)
         }
+
+        // Update tutorial manager (always, for animations)
+        tutorialManager?.update(deltaTime)
+
+        // Update tutorial highlight positions based on current step
+        updateTutorialHighlight()
 
         // Update bloom post-processing time (for scanline animation)
         if (::bloomEffect.isInitialized && bloomEffect.isReady()) {
@@ -439,11 +459,22 @@ class GLRenderer(
             gameHUD.renderCornerUpgradePanel(spriteBatch, whitePixelTexture)
         }
 
+        // Render tutorial overlay on top of everything
+        if (tutorialManager?.isActive == true) {
+            gameHUD.renderTutorialOverlay(spriteBatch, whitePixelTexture)
+        }
+
         spriteBatch.end()
     }
 
     fun onTouchEvent(event: MotionEvent): Boolean {
         if (!isInitialized) return false
+
+        // Handle tutorial touch events first (highest priority when tutorial is active)
+        if (tutorialManager?.isActive == true) {
+            val handled = handleTutorialTouch(event)
+            if (handled) return true
+        }
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
@@ -634,4 +665,202 @@ class GLRenderer(
         val selectedTowerCost: Int,
         val waveState: String
     )
+
+    // ============================================
+    // TUTORIAL SYSTEM METHODS
+    // ============================================
+
+    /**
+     * Initialize the tutorial system if conditions are met.
+     */
+    private fun initializeTutorial() {
+        val manager = TutorialManager(levelId, tutorialRepository)
+
+        if (manager.shouldStartTutorial()) {
+            Log.d(TAG, "Starting interactive tutorial")
+            tutorialManager = manager
+
+            // Set up callbacks
+            manager.onStepChanged = { stepData ->
+                Log.d(TAG, "Tutorial step changed to: ${stepData.step}")
+                gameHUD.tutorialStepData = stepData
+                gameHUD.onTutorialStepChanged()
+            }
+
+            manager.onTutorialComplete = {
+                Log.d(TAG, "Tutorial completed")
+                gameHUD.tutorialStepData = null
+                gameWorld.allowInputDuringTutorial = false
+            }
+
+            manager.onTutorialSkipped = {
+                Log.d(TAG, "Tutorial skipped")
+                gameHUD.tutorialStepData = null
+                gameWorld.allowInputDuringTutorial = false
+            }
+
+            // Wire GameWorld callbacks to tutorial manager
+            gameWorld.onTowerPlaced = { gridX, gridY, worldPos ->
+                manager.onTowerPlaced(gridX, gridY, worldPos)
+            }
+
+            gameWorld.onTowerTapped = {
+                manager.onTowerTapped()
+            }
+
+            // Start the tutorial
+            manager.startTutorial()
+        } else {
+            Log.d(TAG, "Tutorial not needed - already completed or not tutorial level")
+            tutorialManager = null
+        }
+    }
+
+    /**
+     * Handle touch events during tutorial.
+     * Returns true if the touch was consumed by the tutorial.
+     */
+    private fun handleTutorialTouch(event: MotionEvent): Boolean {
+        val manager = tutorialManager ?: return false
+        if (!manager.isActive) return false
+
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                // Check skip button first (always active)
+                if (gameHUD.isTouchOnTutorialSkipButton(event.x, event.y)) {
+                    manager.skipTutorial()
+                    return true
+                }
+
+                // Handle based on current step's completion condition
+                val stepData = manager.currentStepData ?: return false
+
+                when (stepData.completionCondition) {
+                    is com.msa.neontd.game.tutorial.CompletionCondition.TapAnywhere -> {
+                        manager.onOverlayTapped()
+                        return true
+                    }
+                    is com.msa.neontd.game.tutorial.CompletionCondition.TowerSelected -> {
+                        // Allow tower button touches, notify manager
+                        val selectedTower = gameHUD.handleTouch(event.x, event.y)
+                        if (selectedTower != null) {
+                            gameWorld.selectTowerType(selectedTower)
+                            val towerIndex = com.msa.neontd.game.entities.TowerType.entries.indexOf(selectedTower)
+                            manager.onTowerTypeSelected(towerIndex)
+                            return true
+                        }
+                        return true  // Block other touches
+                    }
+                    is com.msa.neontd.game.tutorial.CompletionCondition.TowerPlaced -> {
+                        // Allow input during tutorial even if game is paused
+                        gameWorld.allowInputDuringTutorial = true
+                        // Forward directly to input manager for grid placement
+                        // This bypasses other touch handlers that might intercept the touch
+                        inputManager.onTouchEvent(event)
+                        return true
+                    }
+                    is com.msa.neontd.game.tutorial.CompletionCondition.TowerTapped -> {
+                        // Allow input during tutorial even if game is paused
+                        gameWorld.allowInputDuringTutorial = true
+                        // Forward directly to input manager for tower selection
+                        inputManager.onTouchEvent(event)
+                        return true
+                    }
+                    is com.msa.neontd.game.tutorial.CompletionCondition.UpgradeApplied -> {
+                        // Allow upgrade panel touches
+                        if (gameHUD.isUpgradePanelTouched(event.x, event.y)) {
+                            val action = gameHUD.handleUpgradePanelTouch(event.x, event.y)
+                            when (action) {
+                                UpgradeAction.UPGRADE_DAMAGE -> {
+                                    val success = gameWorld.upgradeSelectedTower(UpgradeableStat.DAMAGE)
+                                    if (success) manager.onUpgradeApplied()
+                                }
+                                UpgradeAction.UPGRADE_RANGE -> {
+                                    val success = gameWorld.upgradeSelectedTower(UpgradeableStat.RANGE)
+                                    if (success) manager.onUpgradeApplied()
+                                }
+                                UpgradeAction.UPGRADE_FIRE_RATE -> {
+                                    val success = gameWorld.upgradeSelectedTower(UpgradeableStat.FIRE_RATE)
+                                    if (success) manager.onUpgradeApplied()
+                                }
+                                else -> {}
+                            }
+                            return true
+                        }
+                        return true  // Block other touches
+                    }
+                    is com.msa.neontd.game.tutorial.CompletionCondition.SpeedTapped -> {
+                        // Allow speed button touch
+                        if (gameHUD.handleSpeedButtonTouch(event.x, event.y)) {
+                            val newSpeed = gameWorld.cycleGameSpeed()
+                            gameHUD.gameSpeed = newSpeed
+                            manager.onSpeedButtonTapped()
+                            return true
+                        }
+                        return true  // Block other touches
+                    }
+                    is com.msa.neontd.game.tutorial.CompletionCondition.Delay -> {
+                        // Auto-advance steps don't respond to touches (except skip)
+                        return false
+                    }
+                }
+            }
+        }
+        return false
+    }
+
+    /**
+     * Update tutorial highlight positions based on current step.
+     */
+    private fun updateTutorialHighlight() {
+        val manager = tutorialManager ?: return
+        val stepData = manager.currentStepData ?: return
+
+        when (val target = stepData.highlightTarget) {
+            is HighlightTarget.TowerButton -> {
+                gameHUD.tutorialHighlightScreenPos = gameHUD.getTowerButtonScreenPos(target.index)
+                gameHUD.tutorialHighlightSize = gameHUD.getTowerButtonSize()
+            }
+            is HighlightTarget.SpeedButton -> {
+                gameHUD.tutorialHighlightScreenPos = gameHUD.getSpeedButtonScreenPos()
+                gameHUD.tutorialHighlightSize = gameHUD.getSpeedButtonSize()
+            }
+            is HighlightTarget.UpgradePanel -> {
+                gameHUD.tutorialHighlightScreenPos = gameHUD.getUpgradePanelScreenPos()
+                gameHUD.tutorialHighlightSize = gameHUD.getUpgradePanelSize()
+            }
+            is HighlightTarget.PlacedTower -> {
+                // Convert world position to screen position
+                // Note: worldToScreen returns Y=0 at top, but HUD uses Y=0 at bottom, so flip Y
+                manager.placedTowerWorldPos?.let { worldPos ->
+                    val screenPos = camera.worldToScreen(worldPos.x, worldPos.y)
+                    gameHUD.tutorialHighlightScreenPos = com.msa.neontd.util.Vector2(
+                        screenPos.first,
+                        screenHeight - screenPos.second
+                    )
+                    gameHUD.tutorialHighlightSize = 40f * (screenWidth / 1080f)
+                }
+            }
+            is HighlightTarget.GridArea -> {
+                // Highlight center of recommended placement area
+                // Note: worldToScreen returns Y=0 at top, but HUD uses Y=0 at bottom, so flip Y
+                if (target.cells.isNotEmpty()) {
+                    val avgX = target.cells.map { it.first }.average().toFloat()
+                    val avgY = target.cells.map { it.second }.average().toFloat()
+                    val worldX = (avgX + 0.5f) * gameWorld.gridMap.cellSize
+                    val worldY = (avgY + 0.5f) * gameWorld.gridMap.cellSize
+                    val screenPos = camera.worldToScreen(worldX, worldY)
+                    gameHUD.tutorialHighlightScreenPos = com.msa.neontd.util.Vector2(
+                        screenPos.first,
+                        screenHeight - screenPos.second
+                    )
+                    gameHUD.tutorialHighlightSize = gameWorld.gridMap.cellSize * camera.zoom
+                }
+            }
+            is HighlightTarget.None, null -> {
+                gameHUD.tutorialHighlightScreenPos = null
+                gameHUD.tutorialHighlightSize = null
+            }
+        }
+    }
 }

@@ -87,6 +87,9 @@ class GameWorld(
     var isUpgradePanelOpen: Boolean = false
         private set
 
+    // Tutorial flag to allow input during tutorial steps that require user interaction
+    var allowInputDuringTutorial: Boolean = false
+
     // Victory configuration - use level definition for total waves
     private val TOTAL_WAVES: Int
         get() = levelDefinition.totalWaves
@@ -129,6 +132,10 @@ class GameWorld(
     var onGameOver: (() -> Unit)? = null
     var onVictory: (() -> Unit)? = null
     var onUpgradePanelChanged: ((TowerUpgradeData?) -> Unit)? = null
+
+    // Tutorial callbacks
+    var onTowerPlaced: ((Int, Int, com.msa.neontd.util.Vector2) -> Unit)? = null
+    var onTowerTapped: (() -> Unit)? = null
 
     fun initialize() {
         Log.d(TAG, "Initializing GameWorld")
@@ -285,8 +292,9 @@ class GameWorld(
     }
 
     private fun handleTouch(event: TouchEvent): Boolean {
-        if (isGameOver || isPaused) {
-            Log.d(TAG, "Touch ignored: gameOver=$isGameOver, paused=$isPaused")
+        // Allow input during tutorial even if game appears paused
+        if (isGameOver || (isPaused && !allowInputDuringTutorial)) {
+            Log.d(TAG, "Touch ignored: gameOver=$isGameOver, paused=$isPaused, tutorialAllows=$allowInputDuringTutorial")
             return false
         }
 
@@ -350,6 +358,9 @@ class GameWorld(
             val towerPos = gridMap.gridToWorld(gridX, gridY)
             vfxManager.onTowerPlace(towerPos, towerType)
 
+            // Notify tutorial system
+            onTowerPlaced?.invoke(gridX, gridY, towerPos)
+
             // Recalculate paths since grid changed
             pathManager.onMapChanged()
             return true
@@ -386,6 +397,9 @@ class GameWorld(
             selectedTowerEntity = entity
             isUpgradePanelOpen = true
             Log.d(TAG, "Selected ${tower.type.displayName} level ${tower.level}")
+
+            // Notify tutorial system
+            onTowerTapped?.invoke()
 
             // Notify UI to show upgrade panel
             val upgradeData = towerFactory.getUpgradeData(entity)
