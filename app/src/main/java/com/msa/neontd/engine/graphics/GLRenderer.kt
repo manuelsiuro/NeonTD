@@ -37,6 +37,14 @@ class GLRenderer(
 
     companion object {
         private const val TAG = "GLRenderer"
+
+        /**
+         * Global toggle for shader/post-processing effects.
+         * Set from SettingsScreen, checked in render loop.
+         * Volatile for thread-safe access from UI thread.
+         */
+        @Volatile
+        var shadersEnabled: Boolean = true
     }
 
     private val gameLoop = GameLoop()
@@ -324,6 +332,11 @@ class GLRenderer(
             gameWorld.update(deltaTime)
         }
 
+        // Update bloom post-processing time (for scanline animation)
+        if (::bloomEffect.isInitialized && bloomEffect.isReady()) {
+            bloomEffect.update(deltaTime)
+        }
+
         // Always update HUD for animations
         gameHUD.update(deltaTime)
     }
@@ -375,11 +388,11 @@ class GLRenderer(
     }
 
     private fun render(interpolation: Float) {
-        if (bloomEnabled && bloomEffect.isReady()) {
+        if (shadersEnabled && bloomEnabled && bloomEffect.isReady()) {
             // Render with bloom post-processing
             renderWithBloom(interpolation)
         } else {
-            // Fallback: render without bloom
+            // Fallback: render without bloom (or shaders disabled)
             renderWithoutBloom(interpolation)
         }
     }

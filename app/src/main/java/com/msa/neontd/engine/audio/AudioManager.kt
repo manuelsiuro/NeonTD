@@ -34,6 +34,7 @@ object AudioManager {
     private var musicPlayer: MediaPlayer? = null
     private var currentMusic: MusicType? = null
     private var isMusicPaused = false
+    private var pendingMusic: MusicType? = null  // Music to play when unmuted
 
     // Volume controls (0.0 to 1.0)
     @Volatile
@@ -63,8 +64,27 @@ object AudioManager {
     @Volatile
     var isMusicMuted: Boolean = false
         set(value) {
+            val wasPlaying = musicPlayer?.isPlaying == true
+            val wasMuted = field
             field = value
-            applyMusicVolume()
+
+            if (value && !wasMuted) {
+                // Muting: stop current music but remember what was playing
+                if (wasPlaying || currentMusic != null) {
+                    pendingMusic = currentMusic
+                    stopMusic()
+                    Log.d(TAG, "Music muted, saved pending: $pendingMusic")
+                }
+            } else if (!value && wasMuted) {
+                // Unmuting: resume pending music if any
+                pendingMusic?.let { music ->
+                    Log.d(TAG, "Music unmuted, resuming: $music")
+                    playMusic(music)
+                    pendingMusic = null
+                }
+            } else {
+                applyMusicVolume()
+            }
         }
 
     private val json = Json { encodeDefaults = true }
@@ -150,6 +170,7 @@ object AudioManager {
         musicPlayer?.release()
         musicPlayer = null
         currentMusic = null
+        pendingMusic = null
 
         context?.let { saveSettings(it) }
         context = null
@@ -199,6 +220,13 @@ object AudioManager {
 
         val ctx = context ?: return
 
+        // If music is muted, just remember what should be playing
+        if (isMusicMuted) {
+            pendingMusic = musicType
+            Log.d(TAG, "Music muted, saved pending: $musicType")
+            return
+        }
+
         // If already playing this music, do nothing
         if (currentMusic == musicType && musicPlayer?.isPlaying == true) {
             return
@@ -226,6 +254,7 @@ object AudioManager {
             }
 
             currentMusic = musicType
+            pendingMusic = null  // Clear pending since we're now playing
             isMusicPaused = false
             Log.d(TAG, "Playing music: ${musicType.name}")
 
@@ -378,9 +407,9 @@ object AudioManager {
     fun isReady(): Boolean = isInitialized
 
     /**
-     * Get the currently playing music type, or null if none.
+     * Get the currently playing music type (or pending music if muted), or null if none.
      */
-    fun getCurrentMusic(): MusicType? = currentMusic
+    fun getCurrentMusic(): MusicType? = currentMusic ?: pendingMusic
 
     /**
      * Check if music is currently playing.

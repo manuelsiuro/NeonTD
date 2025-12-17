@@ -901,9 +901,9 @@ class GameWorld(
                 0.8f  // Strong glow
             )
             CellType.EXIT -> Triple(
-                Color(0.15f, 0.05f, 0.15f, 0.6f),  // Magenta tint
-                Color.NEON_MAGENTA.copy(),  // Full magenta border
-                0.8f  // Strong glow
+                Color(0.2f, 0.05f, 0.1f, 0.7f),  // Darker red tint, more contained
+                Color.NEON_MAGENTA.copy().also { it.a = 0.8f },  // Slightly dimmer border
+                0.4f  // Reduced glow to fit within cell
             )
             CellType.TOWER -> Triple(
                 Color(0.04f, 0.06f, 0.1f, 0.4f),  // Dark fill

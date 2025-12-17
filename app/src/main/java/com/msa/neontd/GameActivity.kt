@@ -104,6 +104,17 @@ class GameActivity : ComponentActivity() {
         // Step 7: Initialize audio system
         AudioManager.initialize(this)
         GameStateManager.addListener(AudioStateListener)
+
+        // Step 8: Load graphics settings (in case launched directly)
+        loadGraphicsSettings()
+    }
+
+    /**
+     * Load graphics settings from SharedPreferences and apply to GLRenderer.
+     */
+    private fun loadGraphicsSettings() {
+        val prefs = getSharedPreferences("neontd_graphics", MODE_PRIVATE)
+        GLRenderer.shadersEnabled = prefs.getBoolean("shaders_enabled", true)
     }
 
     /**

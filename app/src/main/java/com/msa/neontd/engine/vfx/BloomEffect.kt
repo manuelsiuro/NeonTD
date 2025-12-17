@@ -28,17 +28,31 @@ class BloomEffect(private val context: Context) {
     private var sceneFbo: FrameBuffer? = null
     private var bloomFbo1: FrameBuffer? = null  // For ping-pong blur
     private var bloomFbo2: FrameBuffer? = null
+    private var postFbo: FrameBuffer? = null    // Full-res for post-processing chain
 
     // Shaders
     private var extractShader: ShaderProgram? = null
     private var blurShader: ShaderProgram? = null
     private var combineShader: ShaderProgram? = null
+    private var chromaticShader: ShaderProgram? = null
+    private var scanlinesShader: ShaderProgram? = null
 
-    // Settings
+    // Bloom settings
     var threshold: Float = 0.35f
     var intensity: Float = 1.2f
     var exposure: Float = 1.0f
     var blurPasses: Int = 2
+
+    // Post-processing settings
+    var chromaticEnabled: Boolean = true
+    var chromaticIntensity: Float = 0.005f  // Subtle RGB separation at edges
+
+    var scanlinesEnabled: Boolean = true
+    var scanlinesIntensity: Float = 0.18f   // Noticeable but not overwhelming (18%)
+    var scanlinesCount: Float = 320f        // Good density for HD screens
+
+    // Animation time for scanlines flicker
+    private var time: Float = 0f
 
     private var screenWidth: Int = 0
     private var screenHeight: Int = 0
@@ -58,8 +72,9 @@ class BloomEffect(private val context: Context) {
         sceneFbo = FrameBuffer(width, height, useDepth = false)
         bloomFbo1 = FrameBuffer(bloomWidth, bloomHeight, useDepth = false)
         bloomFbo2 = FrameBuffer(bloomWidth, bloomHeight, useDepth = false)
+        postFbo = FrameBuffer(width, height, useDepth = false)  // Full-res for post-processing
 
-        if (!sceneFbo!!.initialize() || !bloomFbo1!!.initialize() || !bloomFbo2!!.initialize()) {
+        if (!sceneFbo!!.initialize() || !bloomFbo1!!.initialize() || !bloomFbo2!!.initialize() || !postFbo!!.initialize()) {
             Log.e(TAG, "Failed to initialize framebuffers")
             return false
         }
@@ -69,8 +84,13 @@ class BloomEffect(private val context: Context) {
             extractShader = loadShader("shaders/fullscreen.vert", "shaders/bloom_extract.frag")
             blurShader = loadShader("shaders/fullscreen.vert", "shaders/bloom_blur.frag")
             combineShader = loadShader("shaders/fullscreen.vert", "shaders/bloom_combine.frag")
+            chromaticShader = loadShader("shaders/fullscreen.vert", "shaders/chromatic.frag")
+            scanlinesShader = loadShader("shaders/fullscreen.vert", "shaders/scanlines.frag")
+            Log.d(TAG, "All post-processing shaders loaded successfully")
+            Log.d(TAG, "Chromatic shader ID: ${chromaticShader?.programId}, Scanlines shader ID: ${scanlinesShader?.programId}")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to load bloom shaders: ${e.message}")
+            e.printStackTrace()
             return false
         }
 
@@ -103,6 +123,7 @@ class BloomEffect(private val context: Context) {
         sceneFbo?.resize(width, height)
         bloomFbo1?.resize(bloomWidth, bloomHeight)
         bloomFbo2?.resize(bloomWidth, bloomHeight)
+        postFbo?.resize(width, height)
 
         Log.d(TAG, "Bloom effect resized: ${width}x${height}")
     }
@@ -127,6 +148,13 @@ class BloomEffect(private val context: Context) {
     }
 
     /**
+     * Update time for animated effects.
+     */
+    fun update(deltaTime: Float) {
+        time += deltaTime
+    }
+
+    /**
      * Applies the bloom effect and renders to screen.
      * Call this after endSceneCapture().
      */
@@ -139,8 +167,30 @@ class BloomEffect(private val context: Context) {
         // Step 2: Blur the extracted brightness (ping-pong)
         blurBloom()
 
+        // Determine if post-processing is needed
+        val hasPostProcessing = chromaticEnabled || scanlinesEnabled
+
         // Step 3: Combine scene with bloom
-        combineToScreen()
+        if (hasPostProcessing) {
+            // Combine to postFbo for further processing (full resolution)
+            combineToFbo(postFbo!!)
+
+            // Step 4: Apply post-processing effects
+            if (chromaticEnabled && scanlinesEnabled) {
+                // Both enabled: chromatic -> sceneFbo (reuse), scanlines -> screen
+                applyChromaticAberration(postFbo!!.textureId, sceneFbo!!)
+                applyScanlines(sceneFbo!!.textureId, null)  // null = screen
+            } else if (chromaticEnabled) {
+                // Only chromatic -> screen
+                applyChromaticAberration(postFbo!!.textureId, null)
+            } else {
+                // Only scanlines -> screen
+                applyScanlines(postFbo!!.textureId, null)
+            }
+        } else {
+            // No post-processing, render directly to screen
+            combineToScreen()
+        }
     }
 
     private fun extractBrightPixels() {
@@ -227,6 +277,84 @@ class BloomEffect(private val context: Context) {
         drawFullscreenQuad()
     }
 
+    private fun combineToFbo(targetFbo: FrameBuffer) {
+        val shader = combineShader ?: return
+        val sceneTex = sceneFbo?.textureId ?: return
+        val bloomTex = bloomFbo1?.textureId ?: return
+
+        // Bind to target FBO at full screen resolution
+        targetFbo.bind()
+        GLES30.glViewport(0, 0, screenWidth, screenHeight)
+        GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
+
+        shader.use()
+        shader.setUniform1f("u_bloomIntensity", intensity)
+        shader.setUniform1f("u_exposure", exposure)
+
+        // Scene texture
+        GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
+        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, sceneTex)
+        shader.setUniform1i("u_scene", 0)
+
+        // Bloom texture
+        GLES30.glActiveTexture(GLES30.GL_TEXTURE1)
+        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, bloomTex)
+        shader.setUniform1i("u_bloom", 1)
+
+        drawFullscreenQuad()
+        targetFbo.unbind()
+    }
+
+    private fun applyChromaticAberration(inputTexture: Int, outputFbo: FrameBuffer?) {
+        val shader = chromaticShader ?: return
+
+        if (outputFbo != null) {
+            outputFbo.bind()
+            GLES30.glViewport(0, 0, outputFbo.getWidth(), outputFbo.getHeight())
+        } else {
+            GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, 0)
+            GLES30.glViewport(0, 0, screenWidth, screenHeight)
+        }
+        GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
+
+        shader.use()
+        shader.setUniform1f("u_intensity", chromaticIntensity)
+
+        GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
+        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, inputTexture)
+        shader.setUniform1i("u_texture", 0)
+
+        drawFullscreenQuad()
+
+        outputFbo?.unbind()
+    }
+
+    private fun applyScanlines(inputTexture: Int, outputFbo: FrameBuffer?) {
+        val shader = scanlinesShader ?: return
+
+        if (outputFbo != null) {
+            outputFbo.bind()
+            GLES30.glViewport(0, 0, outputFbo.getWidth(), outputFbo.getHeight())
+        } else {
+            GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, 0)
+            GLES30.glViewport(0, 0, screenWidth, screenHeight)
+        }
+        GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
+
+        shader.use()
+        shader.setUniform1f("u_intensity", scanlinesIntensity)
+        shader.setUniform1f("u_lineCount", scanlinesCount)
+        shader.setUniform1f("u_time", time)
+
+        GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
+        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, inputTexture)
+        shader.setUniform1i("u_texture", 0)
+
+        drawFullscreenQuad()
+
+        outputFbo?.unbind()
+    }
+
     private fun drawFullscreenQuad() {
         GLES30.glBindVertexArray(dummyVao)
         GLES30.glDrawArrays(GLES30.GL_TRIANGLE_STRIP, 0, 4)
@@ -251,10 +379,13 @@ class BloomEffect(private val context: Context) {
         sceneFbo?.dispose()
         bloomFbo1?.dispose()
         bloomFbo2?.dispose()
+        postFbo?.dispose()
 
         extractShader?.delete()
         blurShader?.delete()
         combineShader?.delete()
+        chromaticShader?.delete()
+        scanlinesShader?.delete()
 
         if (dummyVao != 0) {
             GLES30.glDeleteVertexArrays(1, intArrayOf(dummyVao), 0)

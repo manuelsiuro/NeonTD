@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.sp
 import com.msa.neontd.engine.audio.AudioEventHandler
 import com.msa.neontd.engine.audio.AudioManager
 import com.msa.neontd.engine.audio.MusicType
+import com.msa.neontd.engine.graphics.GLRenderer
 import com.msa.neontd.game.editor.CustomLevelData
 import com.msa.neontd.game.editor.CustomLevelRepository
 import com.msa.neontd.game.level.ProgressionRepository
@@ -45,6 +46,7 @@ import com.msa.neontd.ui.EncyclopediaScreen
 import com.msa.neontd.ui.LevelSelectionScreen
 import com.msa.neontd.ui.editor.LevelEditorHubScreen
 import com.msa.neontd.ui.editor.LevelEditorScreen
+import com.msa.neontd.ui.screens.SettingsScreen
 import com.msa.neontd.ui.sharing.LevelImportPreviewScreen
 import com.msa.neontd.ui.sharing.ShareLevelScreen
 import com.msa.neontd.ui.theme.NeonTDTheme
@@ -68,7 +70,8 @@ private enum class MainMenuNavigation {
     LEVEL_EDITOR_NEW,
     LEVEL_EDITOR_EDIT,
     SHARE_LEVEL,
-    IMPORT_LEVEL
+    IMPORT_LEVEL,
+    SETTINGS
 }
 
 class MainActivity : ComponentActivity() {
@@ -91,6 +94,9 @@ class MainActivity : ComponentActivity() {
 
         // Initialize audio system
         AudioManager.initialize(this)
+
+        // Load graphics settings
+        loadGraphicsSettings()
 
         // Initialize progression repository
         progressionRepository = ProgressionRepository(this)
@@ -133,6 +139,20 @@ class MainActivity : ComponentActivity() {
                             },
                             onLevelEditorClick = {
                                 navigation = MainMenuNavigation.LEVEL_EDITOR_HUB
+                            },
+                            onSettingsClick = {
+                                navigation = MainMenuNavigation.SETTINGS
+                            }
+                        )
+                    }
+
+                    MainMenuNavigation.SETTINGS -> {
+                        BackHandler {
+                            navigation = MainMenuNavigation.MENU
+                        }
+                        SettingsScreen(
+                            onBackClick = {
+                                navigation = MainMenuNavigation.MENU
                             }
                         )
                     }
@@ -358,6 +378,14 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Load graphics settings from SharedPreferences and apply to GLRenderer.
+     */
+    private fun loadGraphicsSettings() {
+        val prefs = getSharedPreferences("neontd_graphics", MODE_PRIVATE)
+        GLRenderer.shadersEnabled = prefs.getBoolean("shaders_enabled", true)
+    }
+
     private fun enableImmersiveMode() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             window.setDecorFitsSystemWindows(false)
@@ -384,7 +412,8 @@ class MainActivity : ComponentActivity() {
 fun MainMenuScreen(
     onPlayClick: () -> Unit,
     onEncyclopediaClick: () -> Unit = {},
-    onLevelEditorClick: () -> Unit = {}
+    onLevelEditorClick: () -> Unit = {},
+    onSettingsClick: () -> Unit = {}
 ) {
     Box(
         modifier = Modifier
@@ -476,6 +505,29 @@ fun MainMenuScreen(
             ) {
                 Text(
                     text = "ENCYCLOPEDIA",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Settings Button
+            Button(
+                onClick = {
+                    AudioEventHandler.onButtonClick()
+                    onSettingsClick()
+                },
+                modifier = Modifier
+                    .fillMaxWidth(0.6f)
+                    .height(56.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFFFAA00).copy(alpha = 0.2f),  // Orange/amber
+                    contentColor = Color(0xFFFFAA00)
+                )
+            ) {
+                Text(
+                    text = "SETTINGS",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
