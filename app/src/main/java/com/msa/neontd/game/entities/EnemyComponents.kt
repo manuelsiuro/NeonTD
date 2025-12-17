@@ -3,6 +3,7 @@ package com.msa.neontd.game.entities
 import com.msa.neontd.engine.ecs.Component
 import com.msa.neontd.engine.ecs.Entity
 import com.msa.neontd.game.world.GridPosition
+import com.msa.neontd.util.Vector2
 
 data class EnemyComponent(
     val type: EnemyType,
@@ -28,6 +29,20 @@ data class StatusEffectsComponent(
     val activeEffects: MutableList<StatusEffect> = mutableListOf()
 ) : Component {
 
+    // VFX callbacks - set by EnemyFactory
+    var onSlowApplied: ((Vector2) -> Unit)? = null
+    var onBurnTick: ((Vector2) -> Unit)? = null
+    var onPoisonTick: ((Vector2) -> Unit)? = null
+    var onStunApplied: ((Vector2) -> Unit)? = null
+
+    // Current position - updated by EnemyMovementSystem
+    var position: Vector2 = Vector2(0f, 0f)
+
+    // Rate limiting for DOT VFX (avoid particle spam)
+    private var burnVfxTimer: Float = 0f
+    private var poisonVfxTimer: Float = 0f
+    private val DOT_VFX_INTERVAL = 0.5f  // Emit VFX every 0.5s
+
     fun applyDot(damageType: DamageType, damagePerSecond: Float, duration: Float) {
         // Stack DOTs of same type
         val existing = activeEffects.filterIsInstance<DotEffect>()
@@ -51,6 +66,8 @@ data class StatusEffectsComponent(
             existing.remainingDuration = maxOf(existing.remainingDuration, duration)
         } else {
             activeEffects.add(SlowEffect(percent, duration))
+            // VFX only on new slow application
+            onSlowApplied?.invoke(position)
         }
     }
 
@@ -61,6 +78,8 @@ data class StatusEffectsComponent(
             existing.remainingDuration = maxOf(existing.remainingDuration, duration)
         } else {
             activeEffects.add(StunEffect(duration))
+            // VFX only on new stun application
+            onStunApplied?.invoke(position)
         }
     }
 
@@ -108,6 +127,10 @@ data class StatusEffectsComponent(
     fun update(deltaTime: Float): Float {
         var totalDotDamage = 0f
 
+        // Track which DOT types are active for VFX
+        var hasBurn = false
+        var hasPoison = false
+
         val iterator = activeEffects.iterator()
         while (iterator.hasNext()) {
             val effect = iterator.next()
@@ -115,11 +138,37 @@ data class StatusEffectsComponent(
 
             if (effect is DotEffect) {
                 totalDotDamage += effect.damagePerSecond * deltaTime
+                when (effect.damageType) {
+                    DamageType.FIRE -> hasBurn = true
+                    DamageType.POISON -> hasPoison = true
+                    else -> { /* Other DOT types don't have VFX */ }
+                }
             }
 
             if (effect.remainingDuration <= 0) {
                 iterator.remove()
             }
+        }
+
+        // Rate-limited DOT VFX
+        if (hasBurn) {
+            burnVfxTimer += deltaTime
+            if (burnVfxTimer >= DOT_VFX_INTERVAL) {
+                burnVfxTimer = 0f
+                onBurnTick?.invoke(position)
+            }
+        } else {
+            burnVfxTimer = 0f
+        }
+
+        if (hasPoison) {
+            poisonVfxTimer += deltaTime
+            if (poisonVfxTimer >= DOT_VFX_INTERVAL) {
+                poisonVfxTimer = 0f
+                onPoisonTick?.invoke(position)
+            }
+        } else {
+            poisonVfxTimer = 0f
         }
 
         return totalDotDamage

@@ -3,6 +3,7 @@ package com.msa.neontd.game.systems
 import com.msa.neontd.engine.ecs.Entity
 import com.msa.neontd.engine.ecs.System
 import com.msa.neontd.engine.ecs.World
+import com.msa.neontd.engine.vfx.VFXManager
 import com.msa.neontd.game.components.TransformComponent
 import com.msa.neontd.game.entities.*
 import com.msa.neontd.util.Vector2
@@ -10,6 +11,9 @@ import com.msa.neontd.util.Vector2
 class TowerAttackSystem(
     private val projectileFactory: ProjectileFactory
 ) : System(priority = 20) {
+
+    // VFX manager for tower firing effects - set by GameWorld
+    var vfxManager: VFXManager? = null
 
     override fun update(world: World, deltaTime: Float) {
         world.forEachWith<TowerComponent, TowerAttackComponent, TowerTargetingComponent> { entity, tower, attack, targeting ->
@@ -84,6 +88,9 @@ class TowerAttackSystem(
             targetPos.y - towerPos.y
         ).normalize()
 
+        // Muzzle flash VFX
+        vfxManager?.onTowerFire(towerPos, direction, towerType)
+
         // Create projectile
         projectileFactory.createProjectile(
             position = towerPos.copy(),
@@ -115,9 +122,17 @@ class TowerAttackSystem(
     ) {
         val beam = world.getComponent<BeamTowerComponent>(tower) ?: return
         val targetHealth = world.getComponent<com.msa.neontd.game.components.HealthComponent>(target) ?: return
+        val targetTransform = world.getComponent<TransformComponent>(target) ?: return
 
         beam.isBeamActive = true
         beam.beamTarget = target
+
+        // Rate-limited beam hit VFX (every 0.1s to avoid particle spam)
+        beam.beamVfxTimer += deltaTime
+        if (beam.beamVfxTimer >= 0.1f) {
+            beam.beamVfxTimer = 0f
+            vfxManager?.onBeamHit(targetTransform.position, TowerType.LASER)
+        }
 
         // Deal continuous damage
         beam.beamDamageAccumulator += damage * deltaTime

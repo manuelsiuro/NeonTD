@@ -91,7 +91,14 @@ object AudioStateListener : GameStateListener {
     }
 
     override fun onStateChanged(oldState: GameState, newState: GameState) {
-        // Additional logging or analytics could go here
+        // Handle restart case: forceState() only calls onStateChanged, not onEnterState
+        // So we need to start gameplay music when restarting from GAME_OVER or VICTORY
+        if (newState == GameState.PLAYING &&
+            (oldState == GameState.GAME_OVER || oldState == GameState.VICTORY)) {
+            // Restarting game - play gameplay music
+            AudioManager.playMusic(MusicType.GAMEPLAY_THEME)
+            AudioEventHandler.reset()
+        }
     }
 
     /**

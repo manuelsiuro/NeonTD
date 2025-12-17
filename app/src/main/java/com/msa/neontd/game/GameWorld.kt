@@ -146,8 +146,33 @@ class GameWorld(
                 // Get position and color for death VFX
                 val transform = world.getComponent<TransformComponent>(entity)
                 val sprite = world.getComponent<SpriteComponent>(entity)
+                val enemy = world.getComponent<EnemyComponent>(entity)
+                val statusEffects = world.getComponent<StatusEffectsComponent>(entity)
+
                 if (transform != null) {
-                    vfxManager.onEnemyDeath(transform.position, sprite?.color ?: Color.NEON_MAGENTA)
+                    val color = sprite?.color ?: Color.NEON_MAGENTA
+
+                    // Differentiate death VFX by enemy type
+                    when (enemy?.type) {
+                        EnemyType.BOSS -> {
+                            vfxManager.onEnemyDeath(transform.position, color, isBoss = true)
+                        }
+                        EnemyType.MINI_BOSS -> {
+                            vfxManager.onMiniBossDeath(transform.position, color)
+                        }
+                        else -> {
+                            // Check for elemental death (if dying with DOT active)
+                            val activeDot = statusEffects?.activeEffects
+                                ?.filterIsInstance<DotEffect>()
+                                ?.firstOrNull()
+
+                            if (activeDot != null) {
+                                vfxManager.onElementalDeath(transform.position, activeDot.damageType)
+                            } else {
+                                vfxManager.onEnemyDeath(transform.position, color)
+                            }
+                        }
+                    }
                 }
                 waveManager.onEnemyKilled(gold)
                 onGoldChanged?.invoke(waveManager.totalGold)
@@ -157,6 +182,10 @@ class GameWorld(
         projectileSystem.setVFXManager(vfxManager)
         lifetimeSystem = LifetimeSystem()
         vfxManager.setCamera(camera)
+
+        // Wire up VFXManager to factories and systems
+        enemyFactory.vfxManager = vfxManager
+        towerAttackSystem.vfxManager = vfxManager
 
         // Add systems to world
         world.addSystem(towerTargetingSystem)
@@ -176,9 +205,25 @@ class GameWorld(
                 onWaveChanged?.invoke(wave, WaveState.COMPLETED)
                 onGoldChanged?.invoke(waveManager.totalGold)
 
+                // Wave celebration VFX - each tower emits victory burst
+                val towerPositions = mutableListOf<Vector2>()
+                world.forEach<TowerComponent> { entity, _ ->
+                    val transform = world.getComponent<TransformComponent>(entity)
+                    if (transform != null) {
+                        towerPositions.add(transform.position.copy())
+                    }
+                }
+                if (towerPositions.isNotEmpty()) {
+                    vfxManager.onWaveCelebration(towerPositions)
+                }
+
                 // Check for victory condition
                 if (wave >= TOTAL_WAVES) {
                     Log.d(TAG, "All waves completed! Victory!")
+                    // Trigger victory VFX and audio
+                    val centerX = gridMap.worldWidth / 2f
+                    val centerY = gridMap.worldHeight / 2f
+                    vfxManager.onVictory(centerX, centerY)
                     onVictory?.invoke()
                 } else {
                     // Set delay before next wave auto-starts
@@ -187,6 +232,10 @@ class GameWorld(
             },
             onGameOver = {
                 Log.d(TAG, "Game Over!")
+                // Trigger game over VFX and audio
+                val centerX = gridMap.worldWidth / 2f
+                val centerY = gridMap.worldHeight / 2f
+                vfxManager.onGameOver(centerX, centerY)
                 // State transition handled by GLRenderer via callback
                 onGameOver?.invoke()
             }
@@ -195,6 +244,9 @@ class GameWorld(
         // Set starting resources from level definition
         waveManager.setStartingGold(levelDefinition.startingGold)
         waveManager.setStartingHealth(levelDefinition.startingHealth)
+
+        // Wire up VFXManager to WaveManager
+        waveManager.vfxManager = vfxManager
 
         // Auto-start first wave after a short delay
         waveStartDelay = 1f

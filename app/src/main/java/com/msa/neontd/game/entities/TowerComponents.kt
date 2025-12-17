@@ -86,7 +86,8 @@ data class TowerBuff(
 data class BeamTowerComponent(
     var isBeamActive: Boolean = false,
     var beamTarget: Entity? = null,
-    var beamDamageAccumulator: Float = 0f
+    var beamDamageAccumulator: Float = 0f,
+    var beamVfxTimer: Float = 0f  // For rate-limited beam hit VFX
 ) : Component
 
 data class AuraTowerComponent(

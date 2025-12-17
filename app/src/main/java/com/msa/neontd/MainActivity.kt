@@ -33,6 +33,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.msa.neontd.engine.audio.AudioEventHandler
+import com.msa.neontd.engine.audio.AudioManager
+import com.msa.neontd.engine.audio.MusicType
 import com.msa.neontd.game.editor.CustomLevelData
 import com.msa.neontd.game.editor.CustomLevelRepository
 import com.msa.neontd.game.level.ProgressionRepository
@@ -85,6 +88,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         enableImmersiveMode()
+
+        // Initialize audio system
+        AudioManager.initialize(this)
 
         // Initialize progression repository
         progressionRepository = ProgressionRepository(this)
@@ -320,6 +326,29 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         enableImmersiveMode()
+
+        // Ensure AudioManager is initialized (in case of process death or first launch)
+        if (!AudioManager.isReady()) {
+            AudioManager.initialize(this)
+        }
+
+        // Resume audio and play menu music
+        AudioManager.onResume()
+        // Start menu music if not already playing
+        if (AudioManager.getCurrentMusic() != MusicType.MENU_THEME) {
+            AudioManager.playMusic(MusicType.MENU_THEME)
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        AudioManager.onPause()
+    }
+
+    override fun onDestroy() {
+        // Release audio resources when app is truly closing
+        AudioManager.release()
+        super.onDestroy()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -387,7 +416,10 @@ fun MainMenuScreen(
 
             // Play Button
             Button(
-                onClick = onPlayClick,
+                onClick = {
+                    AudioEventHandler.onButtonClick()
+                    onPlayClick()
+                },
                 modifier = Modifier
                     .fillMaxWidth(0.6f)
                     .height(56.dp),
@@ -407,7 +439,10 @@ fun MainMenuScreen(
 
             // Level Editor Button
             Button(
-                onClick = onLevelEditorClick,
+                onClick = {
+                    AudioEventHandler.onButtonClick()
+                    onLevelEditorClick()
+                },
                 modifier = Modifier
                     .fillMaxWidth(0.6f)
                     .height(56.dp),
@@ -427,7 +462,10 @@ fun MainMenuScreen(
 
             // Encyclopedia Button
             Button(
-                onClick = onEncyclopediaClick,
+                onClick = {
+                    AudioEventHandler.onButtonClick()
+                    onEncyclopediaClick()
+                },
                 modifier = Modifier
                     .fillMaxWidth(0.6f)
                     .height(56.dp),

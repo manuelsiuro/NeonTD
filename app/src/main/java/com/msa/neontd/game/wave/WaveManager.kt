@@ -1,7 +1,9 @@
 package com.msa.neontd.game.wave
 
+import com.msa.neontd.engine.vfx.VFXManager
 import com.msa.neontd.game.entities.EnemyFactory
 import com.msa.neontd.game.entities.EnemyType
+import com.msa.neontd.util.Vector2
 
 data class WaveSpawn(
     val enemyType: EnemyType,
@@ -31,8 +33,12 @@ class WaveManager(
     private val pathCount: Int = 1,  // Number of available spawn paths
     private val customWaveDefinitions: List<WaveDefinition>? = null,  // Custom waves from editor
     private val onWaveComplete: (Int, Int) -> Unit,  // Wave number, bonus gold
-    private val onGameOver: () -> Unit
+    private val onGameOver: () -> Unit,
+    private val spawnPoints: List<Vector2> = emptyList()  // For wave start VFX
 ) {
+    // VFX manager for wave effects - set by GameWorld
+    var vfxManager: VFXManager? = null
+
     var currentWave: Int = 0
         private set
 
@@ -69,6 +75,11 @@ class WaveManager(
         if (state != WaveState.WAITING && state != WaveState.COMPLETED) return
 
         currentWave++
+
+        // Trigger wave start VFX at spawn points
+        if (spawnPoints.isNotEmpty()) {
+            vfxManager?.onWaveStart(spawnPoints)
+        }
 
         // Use custom wave definitions if available, otherwise generate
         currentWaveDefinition = customWaveDefinitions?.find { it.waveNumber == currentWave }
@@ -167,6 +178,10 @@ class WaveManager(
         val bonusGold = currentWaveDefinition?.bonusGold ?: 0
         totalGold += bonusGold
         state = WaveState.COMPLETED
+
+        // Trigger wave complete VFX
+        vfxManager?.onWaveComplete()
+
         onWaveComplete(currentWave, bonusGold)
     }
 

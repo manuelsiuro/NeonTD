@@ -9,6 +9,7 @@ import com.msa.neontd.game.components.VelocityComponent
 import com.msa.neontd.game.world.GridMap
 import com.msa.neontd.game.world.GridPosition
 import com.msa.neontd.game.world.PathManager
+import com.msa.neontd.engine.vfx.VFXManager
 import com.msa.neontd.util.Vector2
 
 class EnemyFactory(
@@ -17,6 +18,9 @@ class EnemyFactory(
     private val pathManager: PathManager
 ) {
     private var waveMultiplier: Float = 1f
+
+    // VFX manager for spawn effects - set by GameWorld
+    var vfxManager: VFXManager? = null
 
     fun setWaveMultiplier(wave: Int) {
         // Enemies get stronger each wave
@@ -104,11 +108,22 @@ class EnemyFactory(
             Resistances.forEnemyType(type)
         ))
 
-        // Status effects container
-        world.addComponent(entity, StatusEffectsComponent())
+        // Status effects container with VFX callbacks
+        val statusEffects = StatusEffectsComponent()
+        statusEffects.position = spawnPos.copy()
+        vfxManager?.let { vfx ->
+            statusEffects.onSlowApplied = { pos -> vfx.onSlowApplied(pos) }
+            statusEffects.onBurnTick = { pos -> vfx.onBurnTick(pos) }
+            statusEffects.onPoisonTick = { pos -> vfx.onPoisonTick(pos) }
+            statusEffects.onStunApplied = { pos -> vfx.onStunApplied(pos) }
+        }
+        world.addComponent(entity, statusEffects)
 
         // Add special components based on type
         addSpecialComponents(entity, type, scaledHealth)
+
+        // Trigger spawn VFX
+        vfxManager?.onEnemySpawn(spawnPos)
 
         return entity
     }

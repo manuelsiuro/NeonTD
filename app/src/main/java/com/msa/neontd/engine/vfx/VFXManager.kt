@@ -17,10 +17,7 @@ class VFXManager {
     private val particleSystem = ParticleSystem(1500)
     private var camera: Camera? = null
 
-    // Trail tracking for continuous effects
-    private val activeTrails = mutableMapOf<Int, TrailData>()
-
-    // Charging effects tracking
+    // Charging effects tracking (for future charging tower implementation)
     private val chargingTowers = mutableMapOf<Int, Float>()
 
     fun setCamera(cam: Camera) {
@@ -37,7 +34,6 @@ class VFXManager {
 
     fun clear() {
         particleSystem.clear()
-        activeTrails.clear()
     }
 
     // ===== Projectile Effects =====
@@ -120,6 +116,7 @@ class VFXManager {
         AudioEventHandler.onTowerFire(position, direction, towerType)
     }
 
+    // Todo: No charging towers, should be added later
     fun onTowerCharging(entityId: Int, position: Vector2, towerType: TowerType, progress: Float) {
         // Emit charge-up particles converging on tower
         if (progress > 0.2f) {
@@ -134,6 +131,7 @@ class VFXManager {
         }
     }
 
+    // Todo: No charging towers, should be added later
     fun onTowerChargeComplete(entityId: Int, position: Vector2, towerType: TowerType) {
         chargingTowers.remove(entityId)
         // Burst effect when charge completes
@@ -257,6 +255,7 @@ class VFXManager {
         AudioEventHandler.onStunApplied(position)
     }
 
+    // Todo: No healing mechanic in game, should be added later
     fun onHeal(position: Vector2) {
         emit(position, ParticleSystem.HEAL)
 
@@ -400,6 +399,7 @@ class VFXManager {
         emit(position, config, Color.NEON_MAGENTA.copy().also { it.a = 0.4f })
     }
 
+    // Todo: implement later
     fun emitGridPulse(position: Vector2) {
         // Path cell pulse effect
         val config = ParticleSystem.TRAIL.copy(count = 1, size = 3f..4f, lifetime = 0.2f..0.3f)
@@ -424,8 +424,4 @@ class VFXManager {
         }
     }
 
-    private data class TrailData(
-        val lastPosition: Vector2,
-        val color: Color
-    )
 }

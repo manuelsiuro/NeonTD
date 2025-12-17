@@ -40,6 +40,9 @@ class EnemyMovementSystem(
 
             // Apply status effects
             if (statusEffects != null) {
+                // Sync position for VFX callbacks
+                statusEffects.position.set(transform.position.x, transform.position.y)
+
                 // Apply DOT damage
                 val dotDamage = statusEffects.update(deltaTime)
                 if (dotDamage > 0 && health != null) {

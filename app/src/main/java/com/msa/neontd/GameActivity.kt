@@ -218,14 +218,19 @@ class GameActivity : ComponentActivity() {
             GameStateManager.transitionTo(GameState.PAUSED)
         }
 
-        // Pause audio
-        AudioManager.onPause()
+        // Stop music when finishing (returning to menu), otherwise just pause
+        if (isFinishing) {
+            AudioManager.stopMusic()
+        } else {
+            AudioManager.onPause()
+        }
     }
 
     override fun onDestroy() {
-        // Remove audio state listener and release audio resources
+        // Remove audio state listener
         GameStateManager.removeListener(AudioStateListener)
-        AudioManager.release()
+        // Reset game state for clean next launch (don't release AudioManager - MainActivity owns it)
+        GameStateManager.reset()
         super.onDestroy()
     }
 
