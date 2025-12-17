@@ -43,6 +43,11 @@ class GameWorld(
 ) {
     companion object {
         private const val TAG = "GameWorld"
+
+        // Ambient VFX rate limits
+        private const val AMBIENT_SPAWN_INTERVAL = 0.15f  // 150ms
+        private const val AMBIENT_EXIT_INTERVAL = 0.12f   // 120ms
+        private const val AURA_PULSE_INTERVAL = 2.0f      // 2 seconds
     }
 
     // ECS World
@@ -94,6 +99,11 @@ class GameWorld(
 
     // Grid animation
     private var pathAnimTimer: Float = 0f
+
+    // Ambient VFX timers
+    private var ambientSpawnTimer: Float = 0f
+    private var ambientExitTimer: Float = 0f
+    private var auraPulseTimer: Float = 0f
 
     // Game speed control (1x, 2x, 3x)
     var gameSpeedMultiplier: Float = 1f
@@ -564,8 +574,53 @@ class GameWorld(
         // Update VFX (scaled for faster particles)
         vfxManager.update(scaledDelta)
 
+        // Update ambient VFX (at normal speed for consistent feel)
+        updateAmbientVFX(deltaTime)
+
         // Update camera at normal speed
         camera.update(deltaTime)
+    }
+
+    /**
+     * Update ambient visual effects for spawn points, exit points, and aura towers.
+     * Uses rate limiting to prevent particle spam while maintaining atmosphere.
+     */
+    private fun updateAmbientVFX(deltaTime: Float) {
+        ambientSpawnTimer += deltaTime
+        ambientExitTimer += deltaTime
+        auraPulseTimer += deltaTime
+
+        // Spawn point portal glow
+        if (ambientSpawnTimer >= AMBIENT_SPAWN_INTERVAL) {
+            ambientSpawnTimer = 0f
+            for (spawnPos in gridMap.getSpawnPoints()) {
+                val worldPos = gridMap.gridToWorld(spawnPos.x, spawnPos.y)
+                vfxManager.emitAmbientSpawnPoint(worldPos)
+            }
+        }
+
+        // Exit point suction effect
+        if (ambientExitTimer >= AMBIENT_EXIT_INTERVAL) {
+            ambientExitTimer = 0f
+            for (exitPos in gridMap.getExitPoints()) {
+                val worldPos = gridMap.gridToWorld(exitPos.x, exitPos.y)
+                vfxManager.emitAmbientExitPoint(worldPos)
+            }
+        }
+
+        // Aura tower pulses
+        if (auraPulseTimer >= AURA_PULSE_INTERVAL) {
+            auraPulseTimer = 0f
+            world.forEachWith<AuraTowerComponent, TransformComponent, TowerComponent> { _, aura, transform, tower ->
+                val color = when (aura.auraEffect) {
+                    AuraEffect.BUFF_TOWERS -> Color.NEON_YELLOW.copy().also { it.a = 0.6f }
+                    AuraEffect.DEBUFF_ENEMIES -> Color.NEON_MAGENTA.copy().also { it.a = 0.5f }
+                    AuraEffect.SLOW_ENEMIES -> Color(0.5f, 0.8f, 1f, 0.5f)
+                    AuraEffect.DAMAGE_ENEMIES -> tower.type.baseColor.copy().also { it.a = 0.5f }
+                }
+                vfxManager.onAuraPulse(transform.position, aura.auraRadius, color)
+            }
+        }
     }
 
     fun render(spriteBatch: SpriteBatch, shader: ShaderProgram, whiteTexture: Texture, interpolation: Float) {

@@ -388,22 +388,37 @@ class VFXManager {
     // ===== Ambient Effects =====
 
     fun emitAmbientSpawnPoint(position: Vector2) {
-        // Subtle particle emission at spawn point
-        val config = ParticleSystem.TRAIL.copy(count = 1, lifetime = 0.3f..0.5f)
-        emit(position, config, Color.NEON_GREEN.copy().also { it.a = 0.5f })
+        // Portal swirl - particles emerge outward from spawn point
+        val config = ParticleSystem.TRAIL.copy(
+            count = 2,
+            lifetime = 0.4f..0.7f,
+            speed = 15f..35f,
+            size = 4f..6f,
+            spread = 25f
+        )
+        emit(position, config, Color.NEON_GREEN.copy().also { it.a = 0.6f })
     }
 
     fun emitAmbientExitPoint(position: Vector2) {
-        // Subtle suction effect at exit
-        val config = ParticleSystem.CHARGE_UP.copy(count = 1, spread = 30f)
-        emit(position, config, Color.NEON_MAGENTA.copy().also { it.a = 0.4f })
+        // Suction effect - converging particles at destination
+        val config = ParticleSystem.CHARGE_UP.copy(
+            count = 2,
+            lifetime = 0.3f..0.5f,
+            size = 5f..7f,
+            spread = 30f
+        )
+        emit(position, config, Color.NEON_MAGENTA.copy().also { it.a = 0.5f })
     }
 
-    // Todo: implement later
     fun emitGridPulse(position: Vector2) {
-        // Path cell pulse effect
-        val config = ParticleSystem.TRAIL.copy(count = 1, size = 3f..4f, lifetime = 0.2f..0.3f)
-        emit(position, config, Color.NEON_CYAN.copy().also { it.a = 0.3f })
+        // Subtle path cell atmosphere - tiny drifting particles
+        val config = ParticleSystem.TRAIL.copy(
+            count = 1,
+            size = 2f..4f,
+            lifetime = 0.3f..0.5f,
+            speed = 5f..15f
+        )
+        emit(position, config, Color.NEON_CYAN.copy().also { it.a = 0.25f })
     }
 
     // ===== Helper Methods =====
