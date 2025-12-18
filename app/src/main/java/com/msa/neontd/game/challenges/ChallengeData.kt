@@ -8,7 +8,8 @@ import kotlinx.serialization.Serializable
 enum class ChallengeType {
     DAILY,      // Resets every 24 hours at midnight
     WEEKLY,     // Resets every Monday at midnight
-    ENDLESS     // No reset, survival mode with high score tracking
+    ENDLESS,    // No reset, survival mode with high score tracking
+    BOSS_RUSH   // Boss-only challenge mode with 10 waves
 }
 
 /**

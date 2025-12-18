@@ -52,7 +52,9 @@ import com.msa.neontd.ui.editor.LevelEditorScreen
 import com.msa.neontd.ui.screens.SettingsScreen
 import com.msa.neontd.ui.sharing.LevelImportPreviewScreen
 import com.msa.neontd.ui.sharing.ShareLevelScreen
+import com.msa.neontd.ui.skins.TowerSkinsScreen
 import com.msa.neontd.ui.theme.NeonTDTheme
+import com.msa.neontd.game.achievements.TowerSkinsRepository
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -76,7 +78,8 @@ private enum class MainMenuNavigation {
     LEVEL_EDITOR_EDIT,
     SHARE_LEVEL,
     IMPORT_LEVEL,
-    SETTINGS
+    SETTINGS,
+    TOWER_SKINS
 }
 
 class MainActivity : ComponentActivity() {
@@ -102,6 +105,9 @@ class MainActivity : ComponentActivity() {
 
         // Load graphics settings
         loadGraphicsSettings()
+
+        // Initialize tower skins cache
+        TowerSkinsRepository.refreshCache(this)
 
         // Initialize progression repository
         progressionRepository = ProgressionRepository(this)
@@ -164,6 +170,20 @@ class MainActivity : ComponentActivity() {
                         SettingsScreen(
                             onBackClick = {
                                 navigation = MainMenuNavigation.MENU
+                            },
+                            onTowerSkinsClick = {
+                                navigation = MainMenuNavigation.TOWER_SKINS
+                            }
+                        )
+                    }
+
+                    MainMenuNavigation.TOWER_SKINS -> {
+                        BackHandler {
+                            navigation = MainMenuNavigation.SETTINGS
+                        }
+                        TowerSkinsScreen(
+                            onBackClick = {
+                                navigation = MainMenuNavigation.SETTINGS
                             }
                         )
                     }

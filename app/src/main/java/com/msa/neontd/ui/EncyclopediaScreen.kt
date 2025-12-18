@@ -58,7 +58,9 @@ import androidx.compose.ui.unit.sp
 import com.msa.neontd.engine.graphics.ShapeType
 import com.msa.neontd.game.data.Encyclopedia
 import com.msa.neontd.game.data.EnemyInfo
+import com.msa.neontd.game.data.SynergyInfo
 import com.msa.neontd.game.data.TowerInfo
+import com.msa.neontd.game.synergies.TowerSynergy
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -79,6 +81,7 @@ fun EncyclopediaScreen(onBackClick: () -> Unit) {
     var selectedTab by remember { mutableIntStateOf(0) }
     var towerIndex by remember { mutableIntStateOf(0) }
     var enemyIndex by remember { mutableIntStateOf(0) }
+    var synergyIndex by remember { mutableIntStateOf(0) }
 
     Box(
         modifier = Modifier
@@ -113,15 +116,18 @@ fun EncyclopediaScreen(onBackClick: () -> Unit) {
                     },
                     label = "tabContent"
                 ) { tab ->
-                    if (tab == 0) {
-                        TowerPager(
+                    when (tab) {
+                        0 -> TowerPager(
                             currentIndex = towerIndex,
                             onIndexChange = { towerIndex = it }
                         )
-                    } else {
-                        EnemyPager(
+                        1 -> EnemyPager(
                             currentIndex = enemyIndex,
                             onIndexChange = { enemyIndex = it }
+                        )
+                        else -> SynergyPager(
+                            currentIndex = synergyIndex,
+                            onIndexChange = { synergyIndex = it }
                         )
                     }
                 }
@@ -184,7 +190,7 @@ private fun NeonTitle() {
 private fun TabRow(selectedTab: Int, onTabSelected: (Int) -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         TabButton(
             text = "TOWERS",
@@ -201,6 +207,14 @@ private fun TabRow(selectedTab: Int, onTabSelected: (Int) -> Unit) {
             color = NeonMagenta,
             modifier = Modifier.weight(1f),
             onClick = { onTabSelected(1) }
+        )
+        TabButton(
+            text = "SYNERGIES",
+            count = Encyclopedia.synergies.size,
+            isSelected = selectedTab == 2,
+            color = NeonYellow,
+            modifier = Modifier.weight(1f),
+            onClick = { onTabSelected(2) }
         )
     }
 }
@@ -320,6 +334,39 @@ private fun EnemyPager(currentIndex: Int, onIndexChange: (Int) -> Unit) {
             currentIndex = currentIndex,
             total = enemies.size,
             color = NeonMagenta,
+            onIndexSelected = onIndexChange
+        )
+    }
+}
+
+@Composable
+private fun SynergyPager(currentIndex: Int, onIndexChange: (Int) -> Unit) {
+    val synergies = Encyclopedia.synergies
+    val synergy = synergies[currentIndex]
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Navigation header with arrows
+        PagerNavigation(
+            currentIndex = currentIndex,
+            total = synergies.size,
+            itemName = synergy.synergy.displayName,
+            accentColor = NeonYellow,
+            onPrevious = { if (currentIndex > 0) onIndexChange(currentIndex - 1) },
+            onNext = { if (currentIndex < synergies.size - 1) onIndexChange(currentIndex + 1) }
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Synergy detail card
+        SynergyDetailCard(synergy = synergy)
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Page indicators
+        PageIndicators(
+            currentIndex = currentIndex,
+            total = synergies.size,
+            color = NeonYellow,
             onIndexSelected = onIndexChange
         )
     }
@@ -623,6 +670,174 @@ private fun ColumnScope.EnemyDetailCard(enemy: EnemyInfo) {
                 title = "💡 COUNTER STRATEGY",
                 titleColor = NeonCyan,
                 content = enemy.tips
+            )
+        }
+    }
+}
+
+@Composable
+private fun ColumnScope.SynergyDetailCard(synergy: SynergyInfo) {
+    val scrollState = rememberScrollState()
+
+    // Get colors for both tower types
+    val tower1Color = synergy.synergy.tower1.baseColor.let { Color(it.r, it.g, it.b, 1f) }
+    val tower2Color = synergy.synergy.tower2.baseColor.let { Color(it.r, it.g, it.b, 1f) }
+
+    val infiniteTransition = rememberInfiniteTransition(label = "synergyPulse")
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.6f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse"
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .weight(1f)
+            .clip(RoundedCornerShape(16.dp))
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        NeonDarkPanel,
+                        NeonDarkPanel.copy(alpha = 0.95f),
+                        NeonBackground
+                    )
+                )
+            )
+            .border(
+                width = 2.dp,
+                brush = Brush.verticalGradient(
+                    colors = listOf(NeonYellow.copy(alpha = 0.6f), NeonYellow.copy(alpha = 0.2f))
+                ),
+                shape = RoundedCornerShape(16.dp)
+            )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(20.dp)
+                .verticalScroll(scrollState),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Tower combination visual
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Tower 1 icon
+                Box(
+                    modifier = Modifier
+                        .size(70.dp)
+                        .clip(CircleShape)
+                        .background(tower1Color.copy(alpha = 0.1f))
+                        .border(2.dp, tower1Color.copy(alpha = pulseAlpha * 0.6f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    ShapeIcon(
+                        shape = synergy.synergy.tower1.shape,
+                        color = tower1Color.copy(alpha = pulseAlpha),
+                        size = 40f
+                    )
+                }
+
+                // Connection indicator
+                Column(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "⚡",
+                        fontSize = 24.sp,
+                        color = NeonYellow.copy(alpha = pulseAlpha)
+                    )
+                    Text(
+                        text = "+",
+                        color = NeonYellow.copy(alpha = 0.8f),
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                // Tower 2 icon
+                Box(
+                    modifier = Modifier
+                        .size(70.dp)
+                        .clip(CircleShape)
+                        .background(tower2Color.copy(alpha = 0.1f))
+                        .border(2.dp, tower2Color.copy(alpha = pulseAlpha * 0.6f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    ShapeIcon(
+                        shape = synergy.synergy.tower2.shape,
+                        color = tower2Color.copy(alpha = pulseAlpha),
+                        size = 40f
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Tower names
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                Text(
+                    text = synergy.synergy.tower1.displayName,
+                    color = tower1Color,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = synergy.synergy.tower2.displayName,
+                    color = tower2Color,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Synergy description (short)
+            Text(
+                text = synergy.synergy.description,
+                color = NeonYellow.copy(alpha = 0.9f),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Detailed effect section
+            InfoSection(
+                title = "⚡ SYNERGY EFFECT",
+                titleColor = NeonYellow,
+                content = synergy.detailedEffect
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Range indicator
+            InfoSection(
+                title = "📍 ACTIVATION RANGE",
+                titleColor = NeonBlue,
+                content = "Towers must be placed within 2 grid cells of each other to activate this synergy."
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Tips section
+            InfoSection(
+                title = "💡 TACTICAL TIP",
+                titleColor = NeonGreen,
+                content = synergy.tips
             )
         }
     }

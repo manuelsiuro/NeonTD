@@ -11,13 +11,19 @@ import com.msa.neontd.engine.input.TouchEvent
 import com.msa.neontd.engine.input.TouchType
 import com.msa.neontd.engine.resources.Texture
 import com.msa.neontd.engine.shaders.ShaderProgram
+import com.msa.neontd.game.abilities.AbilityEffects
+import com.msa.neontd.game.abilities.AbilityUIData
+import com.msa.neontd.game.abilities.TowerAbility
+import com.msa.neontd.game.abilities.TowerAbilityComponent
+import com.msa.neontd.game.abilities.TowerAbilitySystem
+import com.msa.neontd.game.synergies.TowerSynergySystem
 import com.msa.neontd.game.components.SpriteComponent
 import com.msa.neontd.game.components.TransformComponent
+import com.msa.neontd.game.components.HealthComponent
 import com.msa.neontd.game.entities.*
 import com.msa.neontd.game.systems.*
 import com.msa.neontd.game.wave.WaveManager
 import com.msa.neontd.game.wave.WaveState
-import com.msa.neontd.game.components.HealthComponent
 import com.msa.neontd.game.level.LevelDefinition
 import com.msa.neontd.game.level.LevelMaps
 import com.msa.neontd.game.wave.WaveDefinition
@@ -66,6 +72,8 @@ class GameWorld(
     // Systems
     lateinit var towerTargetingSystem: TowerTargetingSystem
     lateinit var towerAttackSystem: TowerAttackSystem
+    lateinit var towerAbilitySystem: TowerAbilitySystem
+    lateinit var towerSynergySystem: TowerSynergySystem
     lateinit var enemyMovementSystem: EnemyMovementSystem
     lateinit var projectileSystem: ProjectileSystem
     lateinit var lifetimeSystem: LifetimeSystem
@@ -156,6 +164,8 @@ class GameWorld(
         // Create systems
         towerTargetingSystem = TowerTargetingSystem()
         towerAttackSystem = TowerAttackSystem(projectileFactory)
+        towerAbilitySystem = TowerAbilitySystem(world)
+        towerSynergySystem = TowerSynergySystem(world)
         enemyMovementSystem = EnemyMovementSystem(
             gridMap, pathManager,
             onEnemyReachedEnd = { entity, damage ->
@@ -219,6 +229,12 @@ class GameWorld(
         // Wire up VFXManager to factories and systems
         enemyFactory.vfxManager = vfxManager
         towerAttackSystem.vfxManager = vfxManager
+        towerAbilitySystem.vfxManager = vfxManager
+
+        // Wire up ability system instant effect callback
+        towerAbilitySystem.onInstantAbility = { entity, ability ->
+            handleInstantAbility(entity, ability)
+        }
 
         // Add systems to world
         world.addSystem(towerTargetingSystem)
@@ -383,6 +399,9 @@ class GameWorld(
             val towerPos = gridMap.gridToWorld(gridX, gridY)
             vfxManager.onTowerPlace(towerPos, towerType)
 
+            // Detect synergies with nearby towers
+            towerSynergySystem.onTowerPlaced(tower)
+
             // Notify tutorial system
             onTowerPlaced?.invoke(gridX, gridY, towerPos)
 
@@ -538,6 +557,9 @@ class GameWorld(
         val transform = world.getComponent<TransformComponent>(entity)
         val tower = world.getComponent<TowerComponent>(entity)
 
+        // Break synergies with partner towers before removal
+        towerSynergySystem.onTowerRemoved(entity)
+
         // Sell the tower
         val sellValue = towerFactory.sellTower(entity)
         if (sellValue > 0) {
@@ -589,6 +611,91 @@ class GameWorld(
         return towerFactory.getUpgradeData(entity)
     }
 
+    // ============================================
+    // TOWER ABILITY SYSTEM
+    // ============================================
+
+    /**
+     * Handle instant ability effects when triggered.
+     */
+    private fun handleInstantAbility(entity: Entity, ability: TowerAbility) {
+        AbilityEffects.executeInstantAbility(
+            world = world,
+            towerEntity = entity,
+            ability = ability,
+            vfxManager = vfxManager,
+            onDamage = { enemyEntity, damage, damageType ->
+                applyAbilityDamage(enemyEntity, damage, damageType)
+            }
+        )
+    }
+
+    /**
+     * Apply damage from an ability effect to an enemy.
+     */
+    private fun applyAbilityDamage(enemyEntity: Entity, damage: Float, damageType: DamageType) {
+        val health = world.getComponent<HealthComponent>(enemyEntity) ?: return
+        val transform = world.getComponent<TransformComponent>(enemyEntity) ?: return
+        val enemy = world.getComponent<EnemyComponent>(enemyEntity) ?: return
+
+        health.takeDamage(damage)
+        vfxManager.onEnemyHit(transform.position, damageType)
+
+        if (health.isDead) {
+            val gold = enemy.goldValue
+            waveManager.onEnemyKilled(gold)
+            onGoldChanged?.invoke(waveManager.totalGold)
+            onEnemyKilledForAchievement?.invoke(enemy.type, gold)
+
+            // Death VFX
+            val sprite = world.getComponent<SpriteComponent>(enemyEntity)
+            val color = sprite?.color ?: Color.NEON_MAGENTA
+            when (enemy.type) {
+                EnemyType.BOSS -> vfxManager.onEnemyDeath(transform.position, color, isBoss = true)
+                EnemyType.MINI_BOSS -> vfxManager.onMiniBossDeath(transform.position, color)
+                else -> vfxManager.onEnemyDeath(transform.position, color)
+            }
+
+            world.destroyEntity(enemyEntity)
+        }
+    }
+
+    /**
+     * Activate the selected tower's ability.
+     * @return True if ability was activated
+     */
+    fun activateSelectedTowerAbility(): Boolean {
+        val entity = selectedTowerEntity ?: return false
+        if (!world.isAlive(entity)) {
+            closeUpgradePanel()
+            return false
+        }
+
+        val success = towerAbilitySystem.activateAbility(entity)
+        if (success) {
+            Log.d(TAG, "Activated ability for tower")
+        }
+        return success
+    }
+
+    /**
+     * Get ability data for the currently selected tower.
+     */
+    fun getSelectedTowerAbilityData(): AbilityUIData? {
+        val entity = selectedTowerEntity ?: return null
+        if (!world.isAlive(entity)) return null
+        return towerAbilitySystem.getAbilityData(entity)
+    }
+
+    /**
+     * Check if the selected tower has an ability.
+     */
+    fun selectedTowerHasAbility(): Boolean {
+        val entity = selectedTowerEntity ?: return false
+        if (!world.isAlive(entity)) return false
+        return towerAbilitySystem.hasAbility(entity)
+    }
+
     /**
      * Get the screen position of the selected tower (for positioning the upgrade panel).
      * Returns null if no tower is selected.
@@ -625,6 +732,9 @@ class GameWorld(
 
         // Update ECS world (scaled for faster movement/attacks)
         world.update(scaledDelta)
+
+        // Update tower abilities (scaled)
+        towerAbilitySystem.update(scaledDelta)
 
         // Update VFX (scaled for faster particles)
         vfxManager.update(scaledDelta)

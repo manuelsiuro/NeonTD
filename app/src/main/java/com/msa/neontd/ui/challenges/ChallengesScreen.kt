@@ -49,6 +49,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.msa.neontd.game.challenges.ChallengeConfig
+import com.msa.neontd.game.challenges.ChallengeData
 import com.msa.neontd.game.challenges.ChallengeDefinition
 import com.msa.neontd.game.challenges.ChallengeDefinitions
 import com.msa.neontd.game.challenges.ChallengeModifiers
@@ -76,10 +77,11 @@ private fun getTabColor(type: ChallengeType): Color = when (type) {
     ChallengeType.DAILY -> NeonCyan
     ChallengeType.WEEKLY -> NeonPurple
     ChallengeType.ENDLESS -> NeonMagenta
+    ChallengeType.BOSS_RUSH -> NeonRed
 }
 
 enum class ChallengeTab {
-    DAILY, WEEKLY, ENDLESS
+    DAILY, WEEKLY, ENDLESS, BOSS_RUSH
 }
 
 @Composable
@@ -172,6 +174,13 @@ fun ChallengesScreen(
                             onPlayChallenge(ChallengeConfig(endless, isEndlessMode = true))
                         }
                     )
+                    ChallengeTab.BOSS_RUSH -> BossRushContent(
+                        challengeData = challengeData,
+                        onPlayBossRush = { mapId, tierIndex ->
+                            val bossRush = ChallengeDefinitions.generateBossRushChallenge(mapId, tierIndex)
+                            onPlayChallenge(ChallengeConfig(bossRush))
+                        }
+                    )
                 }
             }
 
@@ -253,6 +262,7 @@ private fun ChallengeTabRow(
                 ChallengeTab.DAILY -> NeonCyan
                 ChallengeTab.WEEKLY -> NeonPurple
                 ChallengeTab.ENDLESS -> NeonMagenta
+                ChallengeTab.BOSS_RUSH -> NeonRed
             }
             val animatedBgAlpha by animateFloatAsState(
                 targetValue = if (isSelected) 0.25f else 0f,
@@ -670,5 +680,182 @@ private fun HighScoreRow(score: EndlessHighScore) {
             fontWeight = FontWeight.Bold,
             color = NeonGold
         )
+    }
+}
+
+@Composable
+private fun BossRushContent(
+    challengeData: ChallengeData,
+    onPlayBossRush: (MapId, Int) -> Unit
+) {
+    var selectedMapId by remember { mutableStateOf(MapId.FORTRESS) }
+    var selectedTierIndex by remember { mutableStateOf(0) }
+    val availableMaps = remember { ChallengeDefinitions.getBossRushMaps() }
+    val tiers = remember { ChallengeDefinitions.getBossRushTiers() }
+
+    LazyColumn(
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Title and description
+        item {
+            Text(
+                text = "BOSS RUSH",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = NeonRed
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Face waves of bosses and mini-bosses. No regular enemies - just the big ones!",
+                fontSize = 13.sp,
+                color = Color.White.copy(alpha = 0.7f)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        // Tier selection
+        item {
+            Text(
+                text = "SELECT DIFFICULTY",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = NeonOrange
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        items(tiers) { (name, description, index) ->
+            val isSelected = selectedTierIndex == index
+            val tierColor = when (index) {
+                0 -> NeonGreen
+                1 -> NeonOrange
+                else -> NeonRed
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(
+                        if (isSelected) tierColor.copy(alpha = 0.2f)
+                        else NeonDarkPanel
+                    )
+                    .border(
+                        width = if (isSelected) 2.dp else 1.dp,
+                        color = if (isSelected) tierColor else tierColor.copy(alpha = 0.3f),
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                    .clickable { selectedTierIndex = index }
+                    .padding(12.dp)
+            ) {
+                Column {
+                    Text(
+                        text = name,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = tierColor
+                    )
+                    Text(
+                        text = description,
+                        fontSize = 12.sp,
+                        color = Color.White.copy(alpha = 0.6f)
+                    )
+                }
+            }
+        }
+
+        // Map selection
+        item {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "SELECT MAP",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = NeonRed
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        // Map grid
+        items(availableMaps.chunked(3)) { mapRow ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                mapRow.forEach { mapId ->
+                    val isSelected = selectedMapId == mapId
+                    val challengeId = "boss_rush_${mapId.name.lowercase()}_$selectedTierIndex"
+                    val bestScore = challengeData.attempts[challengeId]?.bestScore ?: 0
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(
+                                if (isSelected) NeonRed.copy(alpha = 0.2f)
+                                else NeonDarkPanel
+                            )
+                            .border(
+                                width = if (isSelected) 2.dp else 1.dp,
+                                color = if (isSelected) NeonRed else NeonRed.copy(alpha = 0.2f),
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            .clickable { selectedMapId = mapId }
+                            .padding(8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = mapId.name.replace('_', ' '),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isSelected) NeonRed else Color.White.copy(alpha = 0.8f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.Center
+                            )
+                            if (bestScore > 0) {
+                                Text(
+                                    text = bestScore.toString(),
+                                    fontSize = 9.sp,
+                                    color = NeonGold.copy(alpha = 0.8f)
+                                )
+                            }
+                        }
+                    }
+                }
+                // Fill remaining space if row is incomplete
+                repeat(3 - mapRow.size) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+
+        // Play button
+        item {
+            Spacer(modifier = Modifier.height(16.dp))
+
+            val tierName = tiers.getOrNull(selectedTierIndex)?.first ?: "Apprentice"
+            val challengeId = "boss_rush_${selectedMapId.name.lowercase()}_$selectedTierIndex"
+            val isCompleted = challengeData.attempts[challengeId]?.isCompleted == true
+
+            Button(
+                onClick = { onPlayBossRush(selectedMapId, selectedTierIndex) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isCompleted) NeonGreen.copy(alpha = 0.2f) else NeonRed.copy(alpha = 0.2f),
+                    contentColor = if (isCompleted) NeonGreen else NeonRed
+                ),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text(
+                    text = if (isCompleted) "COMPLETED - PLAY AGAIN" else "START BOSS RUSH: $tierName",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
     }
 }

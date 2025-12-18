@@ -6,6 +6,7 @@ import com.msa.neontd.engine.graphics.SafeAreaInsets
 import com.msa.neontd.engine.graphics.ShapeType
 import com.msa.neontd.engine.graphics.SpriteBatch
 import com.msa.neontd.engine.resources.Texture
+import com.msa.neontd.game.abilities.AbilityUIData
 import com.msa.neontd.game.data.Encyclopedia
 import com.msa.neontd.game.entities.EnemyType
 import com.msa.neontd.game.entities.TowerType
@@ -92,6 +93,9 @@ class GameHUD(
     private var upgradePanelWorldPos: com.msa.neontd.util.Vector2? = null
     private var upgradePanelAreas: UpgradePanelAreas? = null
     private var upgradePanelAnimProgress: Float = 0f
+
+    // Tower ability state
+    private var abilityData: AbilityUIData? = null
 
     // Transition animation state
     private var transitionAlpha: Float = 1f
@@ -2217,6 +2221,13 @@ class GameHUD(
     }
 
     /**
+     * Update the ability data for the upgrade panel.
+     */
+    fun updateAbilityData(data: AbilityUIData?) {
+        abilityData = data
+    }
+
+    /**
      * Handle touch events on the upgrade panel.
      * @return The action triggered, or null if touch was outside panel
      */
@@ -2250,6 +2261,16 @@ class GameHUD(
         if (isPointInRect(screenX, touchY, areas.sellButton)) {
             AudioEventHandler.onButtonClick()
             return UpgradeAction.SELL
+        }
+
+        // Check ability button
+        val abilityBtn = areas.abilityButton
+        if (abilityBtn != null && isPointInRect(screenX, touchY, abilityBtn)) {
+            val ability = abilityData
+            if (ability != null && ability.canActivate) {
+                AudioEventHandler.onButtonClick()
+                return UpgradeAction.ACTIVATE_ABILITY
+            }
         }
 
         // Check if touch is within panel bounds (consume touch but no action)
@@ -2419,6 +2440,7 @@ class GameHUD(
             rangeButton = rngBtnArea,
             fireRateButton = spdBtnArea,
             sellButton = Rectangle(sellBtnX, sellBtnY, sellBtnWidth, sellBtnHeight),
+            abilityButton = null,  // Old panel doesn't show ability button
             closeButton = Rectangle(closeBtnX, closeBtnY, closeBtnSize, closeBtnSize)
         )
     }
@@ -2436,9 +2458,9 @@ class GameHUD(
         val animProgress = easeOutBack(upgradePanelAnimProgress)
         val animAlpha = upgradePanelAnimProgress
 
-        // Wider panel dimensions for better readability
+        // Wider panel dimensions for better readability (increased for ability button)
         val panelWidth = 260f * scaleFactor
-        val panelHeight = 280f * scaleFactor
+        val panelHeight = 330f * scaleFactor  // Increased for ability button
         val rowHeight = 48f * scaleFactor
         val buttonWidth = 52f * scaleFactor
         val buttonHeight = 38f * scaleFactor
@@ -2546,6 +2568,18 @@ class GameHUD(
             Color.NEON_YELLOW.copy(), data.canUpgrade && gold >= data.upgradeCost, animAlpha,
             data.upgradeCost)
 
+        // === ABILITY BUTTON ===
+        val abilityBtnWidth = panelWidth - panelPadding * 2
+        val abilityBtnHeight = 40f * scaleFactor
+        val abilityBtnX = panelX + panelPadding
+        val abilityBtnY = spdY - abilityBtnHeight - 8f * scaleFactor
+
+        // Render ability button if ability data is available
+        val abilityBtnArea = abilityData?.let { ability ->
+            renderAbilityButton(spriteBatch, whiteTexture, abilityBtnX, abilityBtnY, abilityBtnWidth, abilityBtnHeight, ability, animAlpha)
+            Rectangle(abilityBtnX, abilityBtnY, abilityBtnWidth, abilityBtnHeight)
+        }
+
         // === SELL BUTTON ===
         val sellBtnWidth = panelWidth - panelPadding * 2
         val sellBtnHeight = 36f * scaleFactor
@@ -2588,6 +2622,7 @@ class GameHUD(
             rangeButton = rngBtnArea,
             fireRateButton = spdBtnArea,
             sellButton = Rectangle(sellBtnX, sellBtnY, sellBtnWidth, sellBtnHeight),
+            abilityButton = abilityBtnArea,
             closeButton = Rectangle(
                 closeBtnX - touchPadding,
                 closeBtnY - touchPadding,
@@ -2834,6 +2869,78 @@ class GameHUD(
         }
     }
 
+    /**
+     * Render the ability button with cooldown indicator.
+     */
+    private fun renderAbilityButton(
+        spriteBatch: SpriteBatch,
+        whiteTexture: Texture,
+        x: Float,
+        y: Float,
+        width: Float,
+        height: Float,
+        ability: AbilityUIData,
+        alpha: Float
+    ) {
+        val borderWidth = 2f * scaleFactor
+
+        // Determine button state color
+        val baseColor = when {
+            ability.isActive -> Color.NEON_YELLOW.copy()  // Active - yellow glow
+            ability.canActivate -> Color.NEON_CYAN.copy() // Ready - cyan
+            else -> Color(0.4f, 0.4f, 0.5f, 1f)           // On cooldown - dim gray
+        }
+
+        // Button background
+        val bgAlpha = if (ability.canActivate) 0.25f else 0.15f
+        spriteBatch.draw(whiteTexture, x, y, width, height,
+            baseColor.copy().also { it.a = bgAlpha * alpha },
+            if (ability.canActivate) 0.3f else 0f
+        )
+
+        // Cooldown progress overlay (fills from left to right)
+        if (!ability.canActivate && !ability.isActive && ability.cooldownProgress < 1f) {
+            val cooldownWidth = width * ability.cooldownProgress
+            spriteBatch.draw(whiteTexture, x, y, cooldownWidth, height,
+                baseColor.copy().also { it.a = 0.3f * alpha }, 0.2f
+            )
+        }
+
+        // Active duration overlay (depletes from right to left)
+        if (ability.isActive && ability.durationProgress < 1f) {
+            val activeWidth = width * (1f - ability.durationProgress)
+            spriteBatch.draw(whiteTexture, x, y, activeWidth, height,
+                Color.NEON_YELLOW.copy().also { it.a = 0.4f * alpha }, 0.5f
+            )
+        }
+
+        // Button border
+        val borderColor = baseColor.copy().also { it.a = 0.8f * alpha }
+        spriteBatch.draw(whiteTexture, x, y + height - borderWidth, width, borderWidth, borderColor, if (ability.canActivate) 0.6f else 0.2f)
+        spriteBatch.draw(whiteTexture, x, y, width, borderWidth, borderColor, if (ability.canActivate) 0.6f else 0.2f)
+        spriteBatch.draw(whiteTexture, x, y, borderWidth, height, borderColor, if (ability.canActivate) 0.6f else 0.2f)
+        spriteBatch.draw(whiteTexture, x + width - borderWidth, y, borderWidth, height, borderColor, if (ability.canActivate) 0.6f else 0.2f)
+
+        // Ability name text
+        val displayText = when {
+            ability.isActive -> ability.ability.displayName.uppercase() + " ACTIVE"
+            ability.canActivate -> ability.ability.displayName.uppercase()
+            else -> {
+                // Show cooldown time remaining
+                val cooldownRemaining = ability.ability.cooldown * (1f - ability.cooldownProgress)
+                "${ability.ability.displayName.uppercase()} ${cooldownRemaining.toInt()}s"
+            }
+        }
+
+        val charWidth = 7f * scaleFactor
+        val charHeight = 11f * scaleFactor
+        val textWidth = calculateTextWidth(displayText, charWidth)
+        val textX = x + (width - textWidth) / 2f
+        val textY = y + (height - charHeight) / 2f
+        val textColor = baseColor.copy().also { it.a = alpha }
+        renderSimpleText(spriteBatch, whiteTexture, displayText, textX, textY, charWidth, charHeight, textColor, if (ability.canActivate) 0.6f else 0.2f)
+    }
+
     private fun renderSimpleText(batch: SpriteBatch, texture: Texture, text: String, x: Float, y: Float, charWidth: Float, charHeight: Float, color: Color, glow: Float) {
         var currentX = x
         val spacing = charWidth * 0.15f
@@ -2948,6 +3055,7 @@ class GameHUD(
         val rangeButton: Rectangle,
         val fireRateButton: Rectangle,
         val sellButton: Rectangle,
+        val abilityButton: Rectangle?,
         val closeButton: Rectangle
     )
 
@@ -3066,5 +3174,6 @@ enum class UpgradeAction {
     UPGRADE_RANGE,
     UPGRADE_FIRE_RATE,
     SELL,
+    ACTIVATE_ABILITY,
     CLOSE_PANEL
 }

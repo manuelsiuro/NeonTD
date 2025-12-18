@@ -2,6 +2,7 @@ package com.msa.neontd.game.data
 
 import com.msa.neontd.game.entities.EnemyType
 import com.msa.neontd.game.entities.TowerType
+import com.msa.neontd.game.synergies.TowerSynergy
 
 data class TowerInfo(
     val type: TowerType,
@@ -17,6 +18,12 @@ data class EnemyInfo(
     val specialAbility: String?,
     val weaknesses: List<String>,
     val resistances: List<String>,
+    val tips: String
+)
+
+data class SynergyInfo(
+    val synergy: TowerSynergy,
+    val detailedEffect: String,
     val tips: String
 )
 
@@ -252,7 +259,52 @@ object Encyclopedia {
         )
     )
 
+    val synergies: List<SynergyInfo> = listOf(
+        SynergyInfo(
+            synergy = TowerSynergy.SHATTER,
+            detailedEffect = "When Slow and Flame towers are placed within 2 cells, the Flame tower deals 50% bonus damage to slowed/frozen enemies.",
+            tips = "Place Slow first to apply debuff, then let Flame tower melt them. Perfect for choke points."
+        ),
+        SynergyInfo(
+            synergy = TowerSynergy.CHAIN_REACTION,
+            detailedEffect = "When Tesla and Chain towers are placed within 2 cells, both gain +2 chain targets.",
+            tips = "Stack these together near crowded paths for devastating chain damage to groups."
+        ),
+        SynergyInfo(
+            synergy = TowerSynergy.SUPPORT_GRID,
+            detailedEffect = "When Buff and Debuff towers are placed within 2 cells, both gain +25% aura radius.",
+            tips = "Create a support cluster to cover more towers and enemies. Central placement recommended."
+        ),
+        SynergyInfo(
+            synergy = TowerSynergy.TOXIC_FIRE,
+            detailedEffect = "When Poison and Flame towers are placed within 2 cells, enemies with both DOT effects take 2x DOT damage.",
+            tips = "Apply poison first, then burn. The combined damage over time is devastating."
+        ),
+        SynergyInfo(
+            synergy = TowerSynergy.PRECISION_STRIKE,
+            detailedEffect = "When Sniper and Debuff towers are placed within 2 cells, armor break effects last 5 seconds instead of normal duration.",
+            tips = "The extended armor break lets Sniper's high damage punch through armored bosses."
+        ),
+        SynergyInfo(
+            synergy = TowerSynergy.GRAVITY_WELL,
+            detailedEffect = "When Gravity and Splash towers are placed within 2 cells, Splash gains +30% splash radius.",
+            tips = "Pull enemies together, then blast them. Perfect synergy for crowd control."
+        ),
+        SynergyInfo(
+            synergy = TowerSynergy.TIME_LOCK,
+            detailedEffect = "When Temporal and Slow towers are placed within 2 cells, slow effects last 2x as long.",
+            tips = "Combined with Temporal's freeze, enemies barely move at all. Ultimate stall strategy."
+        ),
+        SynergyInfo(
+            synergy = TowerSynergy.OVERLOAD_SYNERGY,
+            detailedEffect = "When Laser and Tesla towers are placed within 2 cells, both gain +25% damage.",
+            tips = "Pure damage boost. Place these together for maximum electrical devastation."
+        )
+    )
+
     fun getTowerInfo(type: TowerType): TowerInfo? = towers.find { it.type == type }
 
     fun getEnemyInfo(type: EnemyType): EnemyInfo? = enemies.find { it.type == type }
+
+    fun getSynergyInfo(synergy: TowerSynergy): SynergyInfo? = synergies.find { it.synergy == synergy }
 }

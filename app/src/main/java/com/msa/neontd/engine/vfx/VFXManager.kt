@@ -4,6 +4,7 @@ import com.msa.neontd.engine.audio.AudioEventHandler
 import com.msa.neontd.engine.graphics.Camera
 import com.msa.neontd.engine.graphics.SpriteBatch
 import com.msa.neontd.engine.resources.Texture
+import com.msa.neontd.game.abilities.TowerAbility
 import com.msa.neontd.game.entities.DamageType
 import com.msa.neontd.game.entities.TowerType
 import com.msa.neontd.util.Color
@@ -325,6 +326,68 @@ class VFXManager {
 
         // Audio: Tower sell sound
         AudioEventHandler.onTowerSell(position, towerType)
+    }
+
+    // ===== Tower Ability Effects =====
+
+    fun onAbilityReady(position: Vector2) {
+        // Subtle ready indicator - small pulse
+        val config = ParticleSystem.TRAIL_BRIGHT.copy(
+            count = 6,
+            speed = 30f..60f,
+            lifetime = 0.3f..0.5f,
+            size = 4f..6f
+        )
+        emit(position, config, Color.NEON_YELLOW.copy().also { it.a = 0.8f })
+    }
+
+    fun onAbilityActivate(position: Vector2, ability: TowerAbility) {
+        // Get color based on ability type
+        val color = getAbilityColor(ability)
+
+        // Dramatic activation burst
+        val burstConfig = ParticleSystem.EXPLOSION.copy(
+            count = 35,
+            speed = 120f..220f,
+            lifetime = 0.4f..0.7f
+        )
+        emit(position, burstConfig, color)
+
+        // Expanding ring
+        particleSystem.emitCircle(position, 60f, ParticleSystem.TRAIL_BRIGHT.copy(count = 20), color)
+
+        // Secondary inner ring
+        particleSystem.emitCircle(position, 30f, ParticleSystem.IMPACT_SMALL.copy(count = 12), color)
+
+        // Screen shake for powerful abilities
+        val shakeIntensity = when (ability) {
+            TowerAbility.CHAIN_STORM, TowerAbility.CARPET_BOMB, TowerAbility.BARRAGE -> 8f
+            TowerAbility.FREEZE_FRAME, TowerAbility.TIME_WARP, TowerAbility.SINGULARITY -> 6f
+            else -> 4f
+        }
+        camera?.shake(shakeIntensity, 0.2f)
+
+        // Audio: Ability activation (using charge complete for now)
+        AudioEventHandler.onTowerChargeComplete(-1, position, TowerType.PULSE)
+    }
+
+    private fun getAbilityColor(ability: TowerAbility): Color {
+        return when (ability) {
+            TowerAbility.OVERCHARGE -> Color.NEON_CYAN.copy()           // Pulse - cyan
+            TowerAbility.MARKED_SHOT -> Color.NEON_ORANGE.copy()        // Sniper - orange
+            TowerAbility.CARPET_BOMB -> Color.NEON_ORANGE.copy()        // Splash - orange/red
+            TowerAbility.INFERNO -> Color(1f, 0.4f, 0.1f, 1f)           // Flame - deep orange
+            TowerAbility.FREEZE_FRAME -> Color(0.7f, 0.9f, 1f, 1f)      // Slow - ice blue
+            TowerAbility.CHAIN_STORM -> Color.NEON_CYAN.copy()          // Tesla - electric cyan
+            TowerAbility.SINGULARITY -> Color.NEON_MAGENTA.copy()       // Gravity - magenta
+            TowerAbility.OVERLOAD -> Color.NEON_MAGENTA.copy()          // Laser - magenta
+            TowerAbility.PLAGUE -> Color.NEON_GREEN.copy()              // Poison - green
+            TowerAbility.BARRAGE -> Color.NEON_ORANGE.copy()            // Missile - orange
+            TowerAbility.TIME_WARP -> Color(0.6f, 0.3f, 1f, 1f)         // Temporal - purple
+            TowerAbility.CHAIN_LIGHTNING -> Color.NEON_CYAN.copy()      // Chain - cyan
+            TowerAbility.EMPOWERMENT -> Color.NEON_YELLOW.copy()        // Buff - yellow
+            TowerAbility.WEAKNESS -> Color.NEON_MAGENTA.copy()          // Debuff - magenta
+        }
     }
 
     // ===== Aura Effects =====

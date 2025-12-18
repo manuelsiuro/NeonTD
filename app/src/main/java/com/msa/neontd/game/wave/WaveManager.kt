@@ -95,8 +95,13 @@ class WaveManager(
         }
 
         // Use custom wave definitions if available, otherwise generate
+        // Check for Boss Rush mode (BOSS_ONLY modifier)
         currentWaveDefinition = customWaveDefinitions?.find { it.waveNumber == currentWave }
-            ?: WaveGenerator.generateWave(currentWave)
+            ?: if (ChallengeModifiers.isBossOnly()) {
+                WaveGenerator.generateBossRushWave(currentWave)
+            } else {
+                WaveGenerator.generateWave(currentWave)
+            }
 
         // Apply level difficulty multiplier to wave scaling
         val effectiveWaveMultiplier = (currentWave * difficultyMultiplier).toInt().coerceAtLeast(1)
@@ -265,6 +270,83 @@ class WaveManager(
 }
 
 object WaveGenerator {
+    /**
+     * Generate a boss-only wave for Boss Rush mode.
+     * Wave structure:
+     * - Waves 1-3: 1 MINI_BOSS each
+     * - Wave 4: 2 MINI_BOSS simultaneously
+     * - Wave 5: 1 BOSS
+     * - Waves 6-8: 2 MINI_BOSS each
+     * - Wave 9: 3 MINI_BOSS
+     * - Wave 10: 1 BOSS + 2 MINI_BOSS
+     * - Waves 11+: Scaling difficulty with more bosses
+     */
+    fun generateBossRushWave(waveNumber: Int): WaveDefinition {
+        val spawns = mutableListOf<WaveSpawn>()
+
+        when {
+            waveNumber <= 3 -> {
+                // Waves 1-3: 1 MINI_BOSS each
+                spawns.add(WaveSpawn(EnemyType.MINI_BOSS, 1, 0f, 0f))
+            }
+            waveNumber == 4 -> {
+                // Wave 4: 2 MINI_BOSS simultaneously
+                spawns.add(WaveSpawn(EnemyType.MINI_BOSS, 2, 0f, 3f))
+            }
+            waveNumber == 5 -> {
+                // Wave 5: First BOSS
+                spawns.add(WaveSpawn(EnemyType.BOSS, 1, 0f, 0f))
+            }
+            waveNumber in 6..8 -> {
+                // Waves 6-8: 2 MINI_BOSS each
+                spawns.add(WaveSpawn(EnemyType.MINI_BOSS, 2, 0f, 2.5f))
+            }
+            waveNumber == 9 -> {
+                // Wave 9: 3 MINI_BOSS
+                spawns.add(WaveSpawn(EnemyType.MINI_BOSS, 3, 0f, 2f))
+            }
+            waveNumber == 10 -> {
+                // Wave 10: 1 BOSS + 2 MINI_BOSS (Final wave for Apprentice)
+                spawns.add(WaveSpawn(EnemyType.MINI_BOSS, 2, 0f, 2f))
+                spawns.add(WaveSpawn(EnemyType.BOSS, 1, 5f, 0f))
+            }
+            waveNumber in 11..14 -> {
+                // Champion tier waves: 3 MINI_BOSS each
+                spawns.add(WaveSpawn(EnemyType.MINI_BOSS, 3, 0f, 1.5f))
+            }
+            waveNumber == 15 -> {
+                // Wave 15: 2 BOSS (Final wave for Champion)
+                spawns.add(WaveSpawn(EnemyType.BOSS, 2, 0f, 5f))
+            }
+            waveNumber in 16..19 -> {
+                // Legend tier waves: 4 MINI_BOSS + 1 BOSS
+                spawns.add(WaveSpawn(EnemyType.MINI_BOSS, 4, 0f, 1.2f))
+                spawns.add(WaveSpawn(EnemyType.BOSS, 1, 6f, 0f))
+            }
+            waveNumber == 20 -> {
+                // Wave 20: Epic finale - 2 BOSS + 4 MINI_BOSS
+                spawns.add(WaveSpawn(EnemyType.MINI_BOSS, 4, 0f, 1f))
+                spawns.add(WaveSpawn(EnemyType.BOSS, 2, 5f, 4f))
+            }
+            else -> {
+                // Beyond wave 20: Escalating madness
+                val bossCount = 1 + (waveNumber - 20) / 5
+                val miniBossCount = 3 + (waveNumber - 20) / 3
+                spawns.add(WaveSpawn(EnemyType.MINI_BOSS, miniBossCount, 0f, 1f))
+                spawns.add(WaveSpawn(EnemyType.BOSS, bossCount, 5f, 3f))
+            }
+        }
+
+        // Boss Rush gives more gold per wave
+        val bonusGold = waveNumber * 50 + (waveNumber / 5) * 100
+
+        return WaveDefinition(
+            waveNumber = waveNumber,
+            spawns = spawns,
+            bonusGold = bonusGold
+        )
+    }
+
     fun generateWave(waveNumber: Int): WaveDefinition {
         val spawns = mutableListOf<WaveSpawn>()
 

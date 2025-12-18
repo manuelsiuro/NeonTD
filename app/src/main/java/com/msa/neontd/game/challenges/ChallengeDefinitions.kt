@@ -346,4 +346,98 @@ object ChallengeDefinitions {
             ?.replaceFirstChar { it.uppercase() }
             ?: "Unknown"
     }
+
+    // ============================================
+    // BOSS RUSH MODE
+    // ============================================
+
+    // Boss Rush difficulty tiers
+    private val bossRushTiers = listOf(
+        BossRushTier(
+            name = "Apprentice",
+            description = "10 waves of boss encounters",
+            difficultyMultiplier = 1.0f,
+            totalWaves = 10,
+            startingGold = 600,
+            startingHealth = 25,
+            modifiers = listOf(
+                ChallengeModifier(ModifierType.BOSS_ONLY, 1f),
+                ChallengeModifier(ModifierType.DOUBLE_GOLD, 1f)
+            )
+        ),
+        BossRushTier(
+            name = "Champion",
+            description = "15 waves with increased difficulty",
+            difficultyMultiplier = 1.5f,
+            totalWaves = 15,
+            startingGold = 800,
+            startingHealth = 20,
+            modifiers = listOf(
+                ChallengeModifier(ModifierType.BOSS_ONLY, 1f),
+                ChallengeModifier(ModifierType.DOUBLE_GOLD, 1f),
+                ChallengeModifier(ModifierType.ENEMY_HEALTH_MULTIPLIER, 1.25f)
+            )
+        ),
+        BossRushTier(
+            name = "Legend",
+            description = "20 waves of pure boss carnage",
+            difficultyMultiplier = 2.0f,
+            totalWaves = 20,
+            startingGold = 1000,
+            startingHealth = 15,
+            modifiers = listOf(
+                ChallengeModifier(ModifierType.BOSS_ONLY, 1f),
+                ChallengeModifier(ModifierType.DOUBLE_GOLD, 1f),
+                ChallengeModifier(ModifierType.ENEMY_HEALTH_MULTIPLIER, 1.5f),
+                ChallengeModifier(ModifierType.ENEMY_SPEED_MULTIPLIER, 1.2f)
+            )
+        )
+    )
+
+    private data class BossRushTier(
+        val name: String,
+        val description: String,
+        val difficultyMultiplier: Float,
+        val totalWaves: Int,
+        val startingGold: Int,
+        val startingHealth: Int,
+        val modifiers: List<ChallengeModifier>
+    )
+
+    /**
+     * Generate a Boss Rush challenge for a specific map and tier.
+     * @param mapId The map to play on
+     * @param tierIndex 0=Apprentice, 1=Champion, 2=Legend
+     */
+    fun generateBossRushChallenge(mapId: MapId = MapId.FORTRESS, tierIndex: Int = 0): ChallengeDefinition {
+        val tier = bossRushTiers.getOrElse(tierIndex) { bossRushTiers[0] }
+
+        return ChallengeDefinition(
+            id = "boss_rush_${mapId.name.lowercase()}_${tierIndex}",
+            type = ChallengeType.BOSS_RUSH,
+            name = "Boss Rush: ${tier.name}",
+            description = tier.description,
+            mapId = mapId.ordinal,
+            difficultyMultiplier = tier.difficultyMultiplier,
+            totalWaves = tier.totalWaves,
+            startingGold = tier.startingGold,
+            startingHealth = tier.startingHealth,
+            modifiers = tier.modifiers,
+            seed = System.currentTimeMillis(),
+            expiresAt = 0  // Never expires
+        )
+    }
+
+    /**
+     * Get all Boss Rush tiers.
+     */
+    fun getBossRushTiers(): List<Triple<String, String, Int>> =
+        bossRushTiers.mapIndexed { index, tier ->
+            Triple(tier.name, tier.description, index)
+        }
+
+    /**
+     * Get available maps for Boss Rush (excluding tutorial and very easy maps).
+     */
+    fun getBossRushMaps(): List<MapId> = mediumMaps + hardMaps
 }

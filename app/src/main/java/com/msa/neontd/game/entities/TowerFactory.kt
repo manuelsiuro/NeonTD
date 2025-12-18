@@ -2,10 +2,16 @@ package com.msa.neontd.game.entities
 
 import com.msa.neontd.engine.ecs.Entity
 import com.msa.neontd.engine.ecs.World
+import com.msa.neontd.game.abilities.TowerAbility
+import com.msa.neontd.game.abilities.TowerAbilityComponent
+import com.msa.neontd.game.achievements.CosmeticRewards
+import com.msa.neontd.game.achievements.TowerSkinsRepository
 import com.msa.neontd.game.components.GridPositionComponent
 import com.msa.neontd.game.components.SpriteComponent
 import com.msa.neontd.game.components.TransformComponent
+import com.msa.neontd.game.synergies.TowerSynergyComponent
 import com.msa.neontd.game.world.GridMap
+import com.msa.neontd.util.Color
 import com.msa.neontd.util.Vector2
 
 class TowerFactory(
@@ -31,11 +37,12 @@ class TowerFactory(
         // Grid position
         world.addComponent(entity, GridPositionComponent(gridX, gridY))
 
-        // Sprite with shape
+        // Sprite with shape - apply skin color if equipped
+        val towerColor = getTowerColor(type)
         world.addComponent(entity, SpriteComponent(
             width = gridMap.cellSize * 0.8f,
             height = gridMap.cellSize * 0.8f,
-            color = type.baseColor.copy(),
+            color = towerColor,
             glow = 0.6f,
             layer = 10,
             shapeType = type.shape
@@ -110,6 +117,15 @@ class TowerFactory(
             }
             else -> { /* No special components */ }
         }
+
+        // Add ability component (all towers have abilities)
+        val ability = TowerAbility.forTowerType(type)
+        if (ability != null) {
+            world.addComponent(entity, TowerAbilityComponent(ability))
+        }
+
+        // Add synergy component (synergies will be detected by TowerSynergySystem)
+        world.addComponent(entity, TowerSynergyComponent())
 
         // Mark grid cell as occupied
         gridMap.placeTower(gridX, gridY, entity.id)
@@ -300,6 +316,23 @@ class TowerFactory(
             rangePoints = upgrade.getStatPoints(UpgradeableStat.RANGE),
             fireRatePoints = upgrade.getStatPoints(UpgradeableStat.FIRE_RATE)
         )
+    }
+
+    /**
+     * Get the color to use for a tower, considering equipped skins.
+     * Returns skin color if equipped, otherwise base color.
+     */
+    private fun getTowerColor(type: TowerType): Color {
+        // Check for equipped skin using cached data
+        val skinId = TowerSkinsRepository.getEquippedSkinId(type)
+        if (skinId != null) {
+            val skinColor = CosmeticRewards.getSkinColorAsFloats(skinId)
+            if (skinColor != null) {
+                return Color(skinColor.first, skinColor.second, skinColor.third, 1f)
+            }
+        }
+        // Fall back to base color
+        return type.baseColor.copy()
     }
 }
 

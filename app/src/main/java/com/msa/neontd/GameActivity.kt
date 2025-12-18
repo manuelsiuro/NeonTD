@@ -16,6 +16,7 @@ import androidx.core.view.WindowInsetsCompat
 import com.msa.neontd.engine.audio.AudioManager
 import com.msa.neontd.engine.audio.AudioStateListener
 import com.msa.neontd.engine.core.GameState
+import com.msa.neontd.game.achievements.TowerSkinsRepository
 import com.msa.neontd.engine.core.GameStateManager
 import com.msa.neontd.engine.graphics.GLRenderer
 import com.msa.neontd.engine.graphics.NeonGLSurfaceView
@@ -139,6 +140,9 @@ class GameActivity : ComponentActivity() {
 
         // Step 8: Load graphics settings (in case launched directly)
         loadGraphicsSettings()
+
+        // Step 9: Refresh tower skins cache for game
+        TowerSkinsRepository.refreshCache(this)
     }
 
     /**

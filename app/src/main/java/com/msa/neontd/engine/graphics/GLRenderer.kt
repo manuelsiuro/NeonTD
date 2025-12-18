@@ -302,8 +302,12 @@ class GLRenderer(
             if (upgradeData != null) {
                 val worldPos = gameWorld.getSelectedTowerWorldPosition()
                 gameHUD.showUpgradePanel(upgradeData, worldPos)
+                // Also update ability data for the selected tower
+                val abilityData = gameWorld.getSelectedTowerAbilityData()
+                gameHUD.updateAbilityData(abilityData)
             } else {
                 gameHUD.hideUpgradePanel()
+                gameHUD.updateAbilityData(null)
             }
         }
 
@@ -392,6 +396,12 @@ class GLRenderer(
 
         // Always update HUD for animations
         gameHUD.update(deltaTime)
+
+        // Update ability data if upgrade panel is open (for cooldown display)
+        if (gameHUD.isUpgradePanelOpen) {
+            val abilityData = gameWorld.getSelectedTowerAbilityData()
+            gameHUD.updateAbilityData(abilityData)
+        }
     }
 
     /**
@@ -558,6 +568,10 @@ class GLRenderer(
                         UpgradeAction.SELL -> {
                             val sellValue = gameWorld.sellSelectedTower()
                             Log.d(TAG, "Sold tower for $sellValue gold")
+                        }
+                        UpgradeAction.ACTIVATE_ABILITY -> {
+                            val success = gameWorld.activateSelectedTowerAbility()
+                            Log.d(TAG, "Activate ability: ${if (success) "success" else "failed"}")
                         }
                         UpgradeAction.CLOSE_PANEL -> {
                             gameWorld.closeUpgradePanel()

@@ -45,12 +45,16 @@ private val NeonAmber = Color(0xFFFFAA00)
 private const val PREFS_NAME = "neontd_graphics"
 private const val KEY_SHADERS_ENABLED = "shaders_enabled"
 
+// Additional colors
+private val NeonGold = Color(0xFFFFD700)
+
 /**
  * Settings screen for managing game audio and visual settings.
  */
 @Composable
 fun SettingsScreen(
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onTowerSkinsClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
 
@@ -135,6 +139,29 @@ fun SettingsScreen(
                 },
                 accentColor = NeonAmber
             )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Tower Skins Button
+            Button(
+                onClick = {
+                    AudioEventHandler.onButtonClick()
+                    onTowerSkinsClick()
+                },
+                modifier = Modifier
+                    .fillMaxWidth(0.85f)
+                    .height(48.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = NeonGold.copy(alpha = 0.2f),
+                    contentColor = NeonGold
+                )
+            ) {
+                Text(
+                    text = "TOWER SKINS",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
 
             Spacer(modifier = Modifier.height(48.dp))
 
