@@ -288,6 +288,11 @@ class GLRenderer(
         gameWorld.onWaveChanged = { wave, state ->
             gameHUD.wave = wave
             gameHUD.waveState = state.name
+            // Enable skip wave button when waiting for next wave (but not during spawning/active)
+            val canSkip = state.name == "WAITING" || state.name == "COMPLETED"
+            gameHUD.canSkipWave = canSkip
+            // Update wave preview when can skip (show upcoming enemies)
+            gameHUD.wavePreviewData = if (canSkip) gameWorld.waveManager.getNextWavePreview() else null
             onWaveChanged?.invoke(wave, state.name)
         }
         gameWorld.onGameOver = {
@@ -321,10 +326,21 @@ class GLRenderer(
             gameWorld.activateHeroAbility()
         }
 
+        // Set up skip wave callback
+        gameHUD.onSkipWavePressed = {
+            gameWorld.waveManager.startWave()
+            Log.d(TAG, "Skip wave button pressed - starting next wave")
+        }
+
         // Set initial HUD values from level configuration
         gameHUD.gold = gameWorld.waveManager.totalGold
         gameHUD.health = gameWorld.waveManager.playerHealth
         gameHUD.wave = gameWorld.waveManager.currentWave
+        gameHUD.totalKills = gameWorld.waveManager.totalEnemiesKilled
+        // Initially can skip if waiting for first wave
+        val canSkipInitially = gameWorld.waveManager.state.name == "WAITING"
+        gameHUD.canSkipWave = canSkipInitially
+        gameHUD.wavePreviewData = if (canSkipInitially) gameWorld.waveManager.getNextWavePreview() else null
 
         // Register state listener and initialize game state
         GameStateManager.addListener(stateListener)
@@ -403,6 +419,9 @@ class GLRenderer(
 
         // Always update HUD for animations
         gameHUD.update(deltaTime)
+
+        // Sync kill counter with wave manager
+        gameHUD.totalKills = gameWorld.waveManager.totalEnemiesKilled
 
         // Update ability data if upgrade panel is open (for cooldown display)
         if (gameHUD.isUpgradePanelOpen) {
@@ -580,6 +599,10 @@ class GLRenderer(
                             val success = gameWorld.activateSelectedTowerAbility()
                             Log.d(TAG, "Activate ability: ${if (success) "success" else "failed"}")
                         }
+                        UpgradeAction.CYCLE_TARGETING_MODE -> {
+                            gameWorld.cycleSelectedTowerTargetingMode()
+                            Log.d(TAG, "Cycled targeting mode")
+                        }
                         UpgradeAction.CLOSE_PANEL -> {
                             gameWorld.closeUpgradePanel()
                             Log.d(TAG, "Upgrade panel closed")
@@ -595,6 +618,13 @@ class GLRenderer(
                     val newSpeed = gameWorld.cycleGameSpeed()
                     gameHUD.gameSpeed = newSpeed
                     Log.d(TAG, "Game speed changed to ${newSpeed}x")
+                    return true
+                }
+
+                // Check for skip wave button (only when can skip)
+                if (!GameStateManager.isGameEnded() && !GameStateManager.isPaused() &&
+                    gameHUD.handleSkipWaveButtonTouch(event.x, event.y)) {
+                    // Skip wave is handled via callback
                     return true
                 }
 

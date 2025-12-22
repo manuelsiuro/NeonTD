@@ -262,6 +262,33 @@ class WaveManager(
         }
     }
 
+    /**
+     * Get preview data for the next wave.
+     * Returns a map of enemy types to their counts.
+     */
+    fun getNextWavePreview(): Map<EnemyType, Int>? {
+        val nextWave = currentWave + 1
+
+        // Get wave definition (custom or generated)
+        val definition = customWaveDefinitions?.find { it.waveNumber == nextWave }
+            ?: if (ChallengeModifiers.isBossOnly()) {
+                WaveGenerator.generateBossRushWave(nextWave)
+            } else {
+                WaveGenerator.generateWave(nextWave)
+            }
+
+        // Aggregate enemy counts by type
+        val enemyCounts = mutableMapOf<EnemyType, Int>()
+        val enemyCountMultiplier = ChallengeModifiers.getEnemyCountMultiplier().toInt().coerceAtLeast(1)
+
+        definition.spawns.forEach { spawn ->
+            val count = spawn.count * enemyCountMultiplier
+            enemyCounts[spawn.enemyType] = (enemyCounts[spawn.enemyType] ?: 0) + count
+        }
+
+        return if (enemyCounts.isNotEmpty()) enemyCounts else null
+    }
+
     private data class QueuedSpawn(
         val enemyType: EnemyType,
         val spawnTime: Float,

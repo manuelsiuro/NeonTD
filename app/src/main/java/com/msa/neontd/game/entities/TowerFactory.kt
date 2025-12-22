@@ -305,6 +305,7 @@ class TowerFactory(
         val stats = world.getComponent<TowerStatsComponent>(entity) ?: return null
         val baseStats = world.getComponent<TowerBaseStatsComponent>(entity) ?: return null
         val upgrade = world.getComponent<TowerUpgradeComponent>(entity) ?: return null
+        val targeting = world.getComponent<TowerTargetingComponent>(entity)
 
         val upgradeCost = if (upgrade.canUpgrade) {
             UpgradeCostCalculator.getUpgradeCost(tower.type, upgrade.currentLevel)
@@ -333,7 +334,9 @@ class TowerFactory(
             ) else stats.fireRate,
             damagePoints = upgrade.getStatPoints(UpgradeableStat.DAMAGE),
             rangePoints = upgrade.getStatPoints(UpgradeableStat.RANGE),
-            fireRatePoints = upgrade.getStatPoints(UpgradeableStat.FIRE_RATE)
+            fireRatePoints = upgrade.getStatPoints(UpgradeableStat.FIRE_RATE),
+            currentDPS = stats.damage * stats.fireRate,
+            targetingMode = targeting?.targetingMode ?: TargetingMode.FIRST
         )
     }
 
@@ -373,5 +376,7 @@ data class TowerUpgradeData(
     val previewFireRate: Float,
     val damagePoints: Int,
     val rangePoints: Int,
-    val fireRatePoints: Int
+    val fireRatePoints: Int,
+    val currentDPS: Float,
+    val targetingMode: TargetingMode
 )

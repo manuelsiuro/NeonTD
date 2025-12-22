@@ -594,6 +594,33 @@ class GameWorld(
     }
 
     /**
+     * Cycle the targeting mode for the currently selected tower.
+     * Goes through: FIRST -> LAST -> STRONGEST -> WEAKEST -> CLOSEST -> RANDOM -> FIRST
+     */
+    fun cycleSelectedTowerTargetingMode() {
+        val entity = selectedTowerEntity ?: return
+        if (!world.isAlive(entity)) return
+
+        val targeting = world.getComponent<TowerTargetingComponent>(entity) ?: return
+
+        // Cycle to next targeting mode
+        targeting.targetingMode = when (targeting.targetingMode) {
+            TargetingMode.FIRST -> TargetingMode.LAST
+            TargetingMode.LAST -> TargetingMode.STRONGEST
+            TargetingMode.STRONGEST -> TargetingMode.WEAKEST
+            TargetingMode.WEAKEST -> TargetingMode.CLOSEST
+            TargetingMode.CLOSEST -> TargetingMode.RANDOM
+            TargetingMode.RANDOM -> TargetingMode.FIRST
+        }
+
+        Log.d(TAG, "Changed targeting mode to: ${targeting.targetingMode}")
+
+        // Update the upgrade panel data to reflect the change
+        val upgradeData = towerFactory.getUpgradeData(entity)
+        onUpgradePanelChanged?.invoke(upgradeData)
+    }
+
+    /**
      * Close the upgrade panel without making any changes.
      */
     fun closeUpgradePanel() {

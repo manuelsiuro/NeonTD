@@ -10,6 +10,7 @@ import com.msa.neontd.game.abilities.AbilityUIData
 import com.msa.neontd.game.data.Encyclopedia
 import com.msa.neontd.game.heroes.HeroModifiers
 import com.msa.neontd.game.entities.EnemyType
+import com.msa.neontd.game.entities.TargetingMode
 import com.msa.neontd.game.entities.TowerType
 import com.msa.neontd.util.Color
 import com.msa.neontd.util.Rectangle
@@ -46,6 +47,8 @@ class GameHUD(
     var health: Int = 20
     var wave: Int = 0
     var waveState: String = "WAITING"
+    var totalKills: Int = 0
+    var wavePreviewData: Map<EnemyType, Int>? = null
     var selectedTowerIndex: Int = 0
     var isGameOver: Boolean = false
     var isVictory: Boolean = false
@@ -70,6 +73,11 @@ class GameHUD(
     // Game speed state
     var gameSpeed: Float = 1f
     private var speedButtonArea: Rectangle? = null
+
+    // Skip wave button state
+    var canSkipWave: Boolean = false
+    private var skipWaveButtonArea: Rectangle? = null
+    var onSkipWavePressed: (() -> Unit)? = null
 
     // Hero ability button state
     private var heroAbilityButtonArea: Rectangle? = null
@@ -396,6 +404,21 @@ class GameHUD(
             Color.NEON_YELLOW.copy(), 1.0f
         )
 
+        // === Kill Counter display (center) ===
+        val killX = screenWidth * 0.48f
+        val killColor = Color.NEON_MAGENTA.copy().also { it.a = 0.9f }
+
+        // Skull icon (circle with X for eyes)
+        renderSkullIcon(spriteBatch, whiteTexture, killX, topBarY, iconSize * 0.85f, killColor, 0.8f)
+
+        // Kill count number
+        numberRenderer.renderNumber(
+            spriteBatch, whiteTexture, totalKills,
+            killX + iconSize + 4f * scaleFactor, topBarY + 4f * scaleFactor,
+            digitWidth * 0.85f, digitHeight * 0.85f,
+            killColor, 0.9f
+        )
+
         // === Wave display (right side, but left of speed/options buttons) ===
         // Account for right safe area inset
         val waveX = screenWidth * 0.68f - safeInsets.right
@@ -415,6 +438,79 @@ class GameHUD(
             digitWidth, digitHeight,
             waveColor, 1.0f
         )
+
+        // === Skip Wave Button (next to wave display, only when can skip) ===
+        if (canSkipWave) {
+            val skipBtnSize = iconSize * 0.75f
+            val skipBtnX = waveX + iconSize + digitWidth * 2.5f + 12f * scaleFactor
+            val skipBtnY = topBarY + (barHeight - skipBtnSize) / 2f
+            skipWaveButtonArea = Rectangle(skipBtnX, skipBtnY, skipBtnSize, skipBtnSize)
+
+            // Pulsing glow effect to draw attention
+            val skipPulse = (sin(pulseTimer * 3f) * 0.2f + 0.8f).toFloat()
+            val skipColor = Color.NEON_GREEN.copy()
+
+            // Button background
+            spriteBatch.draw(
+                whiteTexture,
+                skipBtnX, skipBtnY,
+                skipBtnSize, skipBtnSize,
+                skipColor.also { it.a = 0.3f * skipPulse },
+                0.5f * skipPulse
+            )
+
+            // Button border
+            val skipBorderW = 2f * scaleFactor
+            spriteBatch.draw(whiteTexture, skipBtnX, skipBtnY + skipBtnSize - skipBorderW, skipBtnSize, skipBorderW, skipColor.also { it.a = 0.9f }, 0.6f)
+            spriteBatch.draw(whiteTexture, skipBtnX, skipBtnY, skipBtnSize, skipBorderW, skipColor.also { it.a = 0.9f }, 0.6f)
+            spriteBatch.draw(whiteTexture, skipBtnX, skipBtnY, skipBorderW, skipBtnSize, skipColor.also { it.a = 0.9f }, 0.6f)
+            spriteBatch.draw(whiteTexture, skipBtnX + skipBtnSize - skipBorderW, skipBtnY, skipBorderW, skipBtnSize, skipColor.also { it.a = 0.9f }, 0.6f)
+
+            // Fast-forward icon (>>)
+            renderFastForwardIcon(spriteBatch, whiteTexture, skipBtnX + skipBtnSize / 2f, skipBtnY + skipBtnSize / 2f, skipBtnSize * 0.35f, skipColor.also { it.a = 1f }, 0.7f)
+
+            // === Wave Preview (show upcoming enemies next to skip button) ===
+            wavePreviewData?.let { preview ->
+                val previewStartX = skipBtnX + skipBtnSize + 8f * scaleFactor
+                val previewIconSize = iconSize * 0.55f
+                val previewSpacing = 4f * scaleFactor
+                var currentX = previewStartX
+                // Max X position to avoid overlapping with buttons on right (speed button is around 83%)
+                val maxPreviewX = screenWidth * 0.80f - safeInsets.right
+
+                // "NEXT:" label
+                val labelColor = Color.NEON_CYAN.copy().also { it.a = 0.8f }
+                renderSimpleText(spriteBatch, whiteTexture, "NEXT",
+                    currentX, topBarY + 6f * scaleFactor,
+                    5f * scaleFactor, 8f * scaleFactor, labelColor, 0.5f)
+                currentX += 28f * scaleFactor
+
+                // Show up to 4 enemy types with counts
+                var count = 0
+                for ((enemyType, enemyCount) in preview) {
+                    if (count >= 4) break
+                    if (currentX > maxPreviewX) break  // Don't overlap with buttons on right
+
+                    // Enemy color indicator (small square)
+                    val enemyColor = enemyType.baseColor.copy().also { it.a = 0.9f }
+                    spriteBatch.draw(whiteTexture, currentX, topBarY + 4f * scaleFactor,
+                        previewIconSize, previewIconSize, enemyColor, 0.6f)
+
+                    // Count (small number)
+                    numberRenderer.renderNumber(
+                        spriteBatch, whiteTexture, enemyCount,
+                        currentX + previewIconSize + 2f * scaleFactor, topBarY + 6f * scaleFactor,
+                        costDigitWidth * 0.9f, costDigitHeight * 0.9f,
+                        Color(0.9f, 0.9f, 0.9f, 0.85f), 0.5f
+                    )
+
+                    currentX += previewIconSize + costDigitWidth * 2.2f + previewSpacing
+                    count++
+                }
+            }
+        } else {
+            skipWaveButtonArea = null
+        }
 
         // === Speed button (before options button) ===
         val speedBtnSize = iconSize * 0.9f
@@ -908,6 +1004,56 @@ class GameHUD(
         batch.draw(texture, x + w - thickness, y, thickness, h, color, glow)
         // Bottom horizontal
         batch.draw(texture, x, y, w, thickness, color, glow)
+    }
+
+    private fun renderSkullIcon(batch: SpriteBatch, texture: Texture, x: Float, y: Float, size: Float, color: Color, glow: Float) {
+        // Skull icon: circle head with X for eyes
+        val cx = x + size / 2f
+        val cy = y + size / 2f
+        val r = size * 0.4f
+        val thickness = size * 0.12f
+
+        // Head outline (circle approximation)
+        for (i in 0..12) {
+            val angle = i * (2f * PI.toFloat() / 12f)
+            val px = cx + cos(angle) * r - thickness / 2f
+            val py = cy + sin(angle) * r - thickness / 2f
+            batch.draw(texture, px, py, thickness, thickness, color, glow)
+        }
+
+        // Left eye (X)
+        val eyeSize = size * 0.12f
+        val eyeOffsetX = size * 0.15f
+        val eyeOffsetY = size * 0.08f
+        batch.draw(texture, cx - eyeOffsetX - eyeSize/2, cy + eyeOffsetY - thickness/2, eyeSize, thickness, color, glow)
+        batch.draw(texture, cx - eyeOffsetX - thickness/2, cy + eyeOffsetY - eyeSize/2, thickness, eyeSize, color, glow)
+
+        // Right eye (X)
+        batch.draw(texture, cx + eyeOffsetX - eyeSize/2, cy + eyeOffsetY - thickness/2, eyeSize, thickness, color, glow)
+        batch.draw(texture, cx + eyeOffsetX - thickness/2, cy + eyeOffsetY - eyeSize/2, thickness, eyeSize, color, glow)
+
+        // Jaw (horizontal line below)
+        val jawY = cy - size * 0.2f
+        batch.draw(texture, cx - size * 0.2f, jawY, size * 0.4f, thickness, color, glow)
+    }
+
+    private fun renderFastForwardIcon(batch: SpriteBatch, texture: Texture, cx: Float, cy: Float, size: Float, color: Color, glow: Float) {
+        // Fast-forward icon: >> (two triangles pointing right)
+        val thickness = size * 0.3f
+        val halfSize = size * 0.6f
+
+        // First arrow >
+        for (i in 0..3) {
+            val t = i / 3f
+            batch.draw(texture, cx - halfSize + halfSize * t - thickness/2, cy + halfSize * 0.5f * (1-t) - thickness/2, thickness, thickness, color, glow)
+            batch.draw(texture, cx - halfSize + halfSize * t - thickness/2, cy - halfSize * 0.5f * (1-t) - thickness/2, thickness, thickness, color, glow)
+        }
+        // Second arrow >
+        for (i in 0..3) {
+            val t = i / 3f
+            batch.draw(texture, cx + halfSize * t - thickness/2, cy + halfSize * 0.5f * (1-t) - thickness/2, thickness, thickness, color, glow)
+            batch.draw(texture, cx + halfSize * t - thickness/2, cy - halfSize * 0.5f * (1-t) - thickness/2, thickness, thickness, color, glow)
+        }
     }
 
     private fun renderHamburgerIcon(batch: SpriteBatch, texture: Texture, cx: Float, cy: Float, size: Float, color: Color, glow: Float) {
@@ -2188,6 +2334,27 @@ class GameHUD(
     }
 
     /**
+     * Handle touch events for the skip wave button.
+     * @return true if skip wave button was touched, false otherwise
+     */
+    fun handleSkipWaveButtonTouch(screenX: Float, screenY: Float): Boolean {
+        if (!canSkipWave) return false
+        val touchY = screenHeight - screenY
+
+        skipWaveButtonArea?.let { area ->
+            if (screenX >= area.x && screenX <= area.x + area.width &&
+                touchY >= area.y && touchY <= area.y + area.height) {
+                // Audio: Button click
+                AudioEventHandler.onButtonClick()
+                // Trigger callback
+                onSkipWavePressed?.invoke()
+                return true
+            }
+        }
+        return false
+    }
+
+    /**
      * Handle touch events for the hero ability button.
      * @return true if ability button was touched and ability was activated, false otherwise
      */
@@ -2377,6 +2544,13 @@ class GameHUD(
             }
         }
 
+        // Check targeting button
+        val targetingBtn = areas.targetingButton
+        if (targetingBtn != null && isPointInRect(screenX, touchY, targetingBtn)) {
+            AudioEventHandler.onButtonClick()
+            return UpgradeAction.CYCLE_TARGETING_MODE
+        }
+
         // Check if touch is within panel bounds (consume touch but no action)
         if (isPointInRect(screenX, touchY, areas.panelBounds)) {
             return null  // Touch consumed but no specific action
@@ -2545,7 +2719,8 @@ class GameHUD(
             fireRateButton = spdBtnArea,
             sellButton = Rectangle(sellBtnX, sellBtnY, sellBtnWidth, sellBtnHeight),
             abilityButton = null,  // Old panel doesn't show ability button
-            closeButton = Rectangle(closeBtnX, closeBtnY, closeBtnSize, closeBtnSize)
+            closeButton = Rectangle(closeBtnX, closeBtnY, closeBtnSize, closeBtnSize),
+            targetingButton = null  // Old panel doesn't show targeting button
         )
     }
 
@@ -2562,9 +2737,9 @@ class GameHUD(
         val animProgress = easeOutBack(upgradePanelAnimProgress)
         val animAlpha = upgradePanelAnimProgress
 
-        // Wider panel dimensions for better readability (increased for ability button)
+        // Wider panel dimensions for better readability (increased for ability + targeting buttons)
         val panelWidth = 260f * scaleFactor
-        val panelHeight = 330f * scaleFactor  // Increased for ability button
+        val panelHeight = 370f * scaleFactor  // Increased for ability + targeting buttons
         val rowHeight = 48f * scaleFactor
         val buttonWidth = 52f * scaleFactor
         val buttonHeight = 38f * scaleFactor
@@ -2581,10 +2756,15 @@ class GameHUD(
         // Apply slide-in animation (from right edge)
         val slideOffset = (1f - animProgress) * (panelWidth + cornerMarginX + safeInsets.right)
         val panelX = targetPanelX + slideOffset
-        val panelY = targetPanelY.coerceIn(
-            towerButtonHeight + safeInsets.bottom + 20f * scaleFactor,
-            screenHeight - panelHeight - barHeight - safeInsets.top - cornerMarginY
-        )
+        // Calculate safe Y bounds, ensuring min <= max
+        val minPanelY = towerButtonHeight + safeInsets.bottom + 20f * scaleFactor
+        val maxPanelY = screenHeight - panelHeight - barHeight - safeInsets.top - cornerMarginY
+        val panelY = if (minPanelY <= maxPanelY) {
+            targetPanelY.coerceIn(minPanelY, maxPanelY)
+        } else {
+            // Panel is taller than available space, use minimum
+            minPanelY
+        }
 
         // Draw panel background
         spriteBatch.draw(
@@ -2639,6 +2819,17 @@ class GameHUD(
             headerY + (headerHeight - levelCharHeight) / 2f,
             levelCharWidth, levelCharHeight, levelColor, 0.7f)
 
+        // DPS Display (below level, right-aligned)
+        val dpsText = "DPS:${data.currentDPS.toInt()}"
+        val dpsCharWidth = 6f * scaleFactor
+        val dpsCharHeight = 9f * scaleFactor
+        val dpsWidth = calculateTextWidth(dpsText, dpsCharWidth)
+        val dpsColor = Color.NEON_ORANGE.copy().also { it.a = animAlpha * 0.9f }
+        renderSimpleText(spriteBatch, whiteTexture, dpsText,
+            panelX + panelWidth - panelPadding - dpsWidth,
+            headerY - dpsCharHeight - 2f * scaleFactor,
+            dpsCharWidth, dpsCharHeight, dpsColor, 0.6f)
+
         // Separator line
         val sepY = headerY - 4f * scaleFactor
         spriteBatch.draw(whiteTexture, panelX + panelPadding, sepY,
@@ -2684,11 +2875,28 @@ class GameHUD(
             Rectangle(abilityBtnX, abilityBtnY, abilityBtnWidth, abilityBtnHeight)
         }
 
+        // === TARGETING MODE BUTTON ===
+        val targetBtnHeight = 32f * scaleFactor
+        val targetBtnWidth = panelWidth - panelPadding * 2
+        val targetBtnX = panelX + panelPadding
+        val targetBtnY = if (abilityData != null) {
+            abilityBtnY - targetBtnHeight - 6f * scaleFactor
+        } else {
+            spdY - targetBtnHeight - 8f * scaleFactor
+        }
+
+        // Render targeting button
+        val targetingBtnArea = renderTargetingButton(
+            spriteBatch, whiteTexture,
+            targetBtnX, targetBtnY, targetBtnWidth, targetBtnHeight,
+            data.targetingMode, animAlpha
+        )
+
         // === SELL BUTTON ===
         val sellBtnWidth = panelWidth - panelPadding * 2
         val sellBtnHeight = 36f * scaleFactor
         val sellBtnX = panelX + panelPadding
-        val sellBtnY = panelY + panelPadding
+        val sellBtnY = targetBtnY - sellBtnHeight - 6f * scaleFactor
 
         // Sell button background
         val sellColor = Color.NEON_MAGENTA.copy()
@@ -2732,7 +2940,8 @@ class GameHUD(
                 closeBtnY - touchPadding,
                 closeBtnSize + touchPadding * 2,
                 closeBtnSize + touchPadding * 2
-            )
+            ),
+            targetingButton = targetingBtnArea
         )
     }
 
@@ -3045,6 +3254,101 @@ class GameHUD(
         renderSimpleText(spriteBatch, whiteTexture, displayText, textX, textY, charWidth, charHeight, textColor, if (ability.canActivate) 0.6f else 0.2f)
     }
 
+    /**
+     * Render the targeting mode button showing current mode with cycle arrows.
+     */
+    private fun renderTargetingButton(
+        spriteBatch: SpriteBatch,
+        whiteTexture: Texture,
+        x: Float,
+        y: Float,
+        width: Float,
+        height: Float,
+        targetingMode: TargetingMode,
+        alpha: Float
+    ): Rectangle {
+        val borderWidth = 2f * scaleFactor
+        val baseColor = Color.NEON_ORANGE.copy()
+
+        // Button background
+        spriteBatch.draw(whiteTexture, x, y, width, height,
+            baseColor.copy().also { it.a = 0.15f * alpha }, 0.2f)
+
+        // Button border
+        val borderColor = baseColor.copy().also { it.a = 0.7f * alpha }
+        spriteBatch.draw(whiteTexture, x, y + height - borderWidth, width, borderWidth, borderColor, 0.4f)
+        spriteBatch.draw(whiteTexture, x, y, width, borderWidth, borderColor, 0.4f)
+        spriteBatch.draw(whiteTexture, x, y, borderWidth, height, borderColor, 0.4f)
+        spriteBatch.draw(whiteTexture, x + width - borderWidth, y, borderWidth, height, borderColor, 0.4f)
+
+        // Targeting icon (crosshair shape) on the left
+        val iconSize = height * 0.5f
+        val iconX = x + 8f * scaleFactor
+        val iconY = y + (height - iconSize) / 2f
+        renderTargetingIcon(spriteBatch, whiteTexture, iconX, iconY, iconSize, baseColor.copy().also { it.a = alpha })
+
+        // Mode text
+        val modeText = "TARGET: ${getTargetingModeName(targetingMode)}"
+        val charWidth = 6f * scaleFactor
+        val charHeight = 10f * scaleFactor
+        val textWidth = calculateTextWidth(modeText, charWidth)
+        val textX = x + iconSize + 16f * scaleFactor
+        val textY = y + (height - charHeight) / 2f
+        renderSimpleText(spriteBatch, whiteTexture, modeText, textX, textY, charWidth, charHeight,
+            baseColor.copy().also { it.a = alpha }, 0.4f)
+
+        // Cycle arrows on the right (< >)
+        val arrowSize = 8f * scaleFactor
+        val arrowY = y + (height - arrowSize) / 2f
+        val arrowRightX = x + width - arrowSize - 8f * scaleFactor
+
+        // Right arrow (>)
+        val arrowColor = baseColor.copy().also { it.a = 0.8f * alpha }
+        val arrowThick = 2f * scaleFactor
+        // Draw > shape
+        spriteBatch.draw(whiteTexture, arrowRightX, arrowY + arrowSize / 2f, arrowSize * 0.6f, arrowThick, arrowColor, 0.5f)
+        spriteBatch.draw(whiteTexture, arrowRightX, arrowY + arrowSize / 2f - arrowThick, arrowSize * 0.6f, arrowThick, arrowColor, 0.5f)
+
+        return Rectangle(x, y, width, height)
+    }
+
+    /**
+     * Render a crosshair targeting icon.
+     */
+    private fun renderTargetingIcon(
+        spriteBatch: SpriteBatch,
+        whiteTexture: Texture,
+        x: Float,
+        y: Float,
+        size: Float,
+        color: Color
+    ) {
+        val lineWidth = 2f * scaleFactor
+        val center = size / 2f
+
+        // Horizontal line
+        spriteBatch.draw(whiteTexture, x, y + center - lineWidth / 2f, size, lineWidth, color, 0.5f)
+        // Vertical line
+        spriteBatch.draw(whiteTexture, x + center - lineWidth / 2f, y, lineWidth, size, color, 0.5f)
+        // Center circle (small square)
+        val dotSize = 4f * scaleFactor
+        spriteBatch.draw(whiteTexture, x + center - dotSize / 2f, y + center - dotSize / 2f, dotSize, dotSize, color, 0.6f)
+    }
+
+    /**
+     * Get display name for targeting mode.
+     */
+    private fun getTargetingModeName(mode: TargetingMode): String {
+        return when (mode) {
+            TargetingMode.FIRST -> "FIRST"
+            TargetingMode.LAST -> "LAST"
+            TargetingMode.STRONGEST -> "STRONG"
+            TargetingMode.WEAKEST -> "WEAK"
+            TargetingMode.CLOSEST -> "CLOSE"
+            TargetingMode.RANDOM -> "RANDOM"
+        }
+    }
+
     private fun renderSimpleText(batch: SpriteBatch, texture: Texture, text: String, x: Float, y: Float, charWidth: Float, charHeight: Float, color: Color, glow: Float) {
         var currentX = x
         val spacing = charWidth * 0.15f
@@ -3160,7 +3464,8 @@ class GameHUD(
         val fireRateButton: Rectangle,
         val sellButton: Rectangle,
         val abilityButton: Rectangle?,
-        val closeButton: Rectangle
+        val closeButton: Rectangle,
+        val targetingButton: Rectangle?
     )
 
     // ============================================
@@ -3279,5 +3584,6 @@ enum class UpgradeAction {
     UPGRADE_FIRE_RATE,
     SELL,
     ACTIVATE_ABILITY,
-    CLOSE_PANEL
+    CLOSE_PANEL,
+    CYCLE_TARGETING_MODE
 }
