@@ -54,7 +54,11 @@ import com.msa.neontd.ui.sharing.LevelImportPreviewScreen
 import com.msa.neontd.ui.sharing.ShareLevelScreen
 import com.msa.neontd.ui.skins.TowerSkinsScreen
 import com.msa.neontd.ui.theme.NeonTDTheme
+import com.msa.neontd.ui.HeroSelectionScreen
+import com.msa.neontd.ui.prestige.PrestigeScreen
 import com.msa.neontd.game.achievements.TowerSkinsRepository
+import com.msa.neontd.game.heroes.HeroRepository
+import com.msa.neontd.game.prestige.PrestigeRepository
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -70,6 +74,8 @@ private val NeonGreen = Color(0xFF00FF00)
 private enum class MainMenuNavigation {
     MENU,
     LEVEL_SELECT,
+    HERO_SELECT,
+    PRESTIGE,
     CHALLENGES,
     ENCYCLOPEDIA,
     ACHIEVEMENTS,
@@ -94,6 +100,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private lateinit var progressionRepository: ProgressionRepository
+    private lateinit var heroRepository: HeroRepository
+    private lateinit var prestigeRepository: PrestigeRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -112,6 +120,12 @@ class MainActivity : ComponentActivity() {
         // Initialize progression repository
         progressionRepository = ProgressionRepository(this)
 
+        // Initialize hero repository
+        heroRepository = HeroRepository(this)
+
+        // Initialize prestige repository
+        prestigeRepository = PrestigeRepository(this)
+
         // DEV MODE: Optionally unlock all levels on launch
         if (DEV_MODE_ENABLED) {
             progressionRepository.unlockAllLevels()
@@ -121,6 +135,9 @@ class MainActivity : ComponentActivity() {
             NeonTDTheme {
                 var navigation by remember { mutableStateOf(MainMenuNavigation.MENU) }
                 var progression by remember { mutableStateOf(progressionRepository.loadProgression()) }
+                var heroData by remember { mutableStateOf(heroRepository.loadData()) }
+                var prestigeData by remember { mutableStateOf(prestigeRepository.loadData()) }
+                var selectedLevelId by remember { mutableStateOf(1) }
                 var editingLevel by remember { mutableStateOf<CustomLevelData?>(null) }
                 var sharingLevel by remember { mutableStateOf<CustomLevelData?>(null) }
                 var importingLevel by remember { mutableStateOf<CustomLevelData?>(null) }
@@ -144,6 +161,11 @@ class MainActivity : ComponentActivity() {
                                 // Refresh progression when entering level select
                                 progression = progressionRepository.loadProgression()
                                 navigation = MainMenuNavigation.LEVEL_SELECT
+                            },
+                            onPrestigeClick = {
+                                progression = progressionRepository.loadProgression()
+                                prestigeData = prestigeRepository.loadData()
+                                navigation = MainMenuNavigation.PRESTIGE
                             },
                             onChallengesClick = {
                                 navigation = MainMenuNavigation.CHALLENGES
@@ -196,11 +218,56 @@ class MainActivity : ComponentActivity() {
                             progression = progression,
                             devModeEnabled = DEV_MODE_ENABLED,
                             onLevelSelected = { levelId ->
+                                // Go to hero selection before starting game
+                                selectedLevelId = levelId
+                                heroData = heroRepository.loadData()
+                                navigation = MainMenuNavigation.HERO_SELECT
+                            },
+                            onBackClick = {
+                                navigation = MainMenuNavigation.MENU
+                            }
+                        )
+                    }
+
+                    MainMenuNavigation.HERO_SELECT -> {
+                        BackHandler {
+                            navigation = MainMenuNavigation.LEVEL_SELECT
+                        }
+                        HeroSelectionScreen(
+                            heroData = heroData,
+                            onHeroSelected = { heroId ->
+                                heroRepository.selectHero(heroId)
+                                heroData = heroRepository.loadData()
+                            },
+                            onStartGame = { heroId ->
                                 val intent = Intent(this, GameActivity::class.java)
-                                intent.putExtra(GameActivity.EXTRA_LEVEL_ID, levelId)
+                                intent.putExtra(GameActivity.EXTRA_LEVEL_ID, selectedLevelId)
+                                intent.putExtra(GameActivity.EXTRA_HERO_ID, heroId.name)
                                 startActivity(intent)
                             },
                             onBackClick = {
+                                navigation = MainMenuNavigation.LEVEL_SELECT
+                            }
+                        )
+                    }
+
+                    MainMenuNavigation.PRESTIGE -> {
+                        BackHandler {
+                            navigation = MainMenuNavigation.MENU
+                        }
+                        PrestigeScreen(
+                            prestigeData = prestigeData,
+                            completedLevels = progression.completedLevelIds.size,
+                            onPrestige = {
+                                val newData = prestigeRepository.performPrestige(progression.completedLevelIds.size)
+                                if (newData != null) {
+                                    prestigeData = newData
+                                    // Reset level progression on prestige
+                                    progressionRepository.resetProgression()
+                                    progression = progressionRepository.loadProgression()
+                                }
+                            },
+                            onBack = {
                                 navigation = MainMenuNavigation.MENU
                             }
                         )
@@ -472,9 +539,13 @@ class MainActivity : ComponentActivity() {
 // Neon gold color for achievements
 private val NeonGold = Color(0xFFFFD700)
 
+// Neon purple for prestige
+private val NeonPurple = Color(0xFF8800FF)
+
 @Composable
 fun MainMenuScreen(
     onPlayClick: () -> Unit,
+    onPrestigeClick: () -> Unit = {},
     onChallengesClick: () -> Unit = {},
     onEncyclopediaClick: () -> Unit = {},
     onAchievementsClick: () -> Unit = {},
@@ -526,6 +597,29 @@ fun MainMenuScreen(
                 Text(
                     text = "PLAY",
                     fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Prestige Button
+            Button(
+                onClick = {
+                    AudioEventHandler.onButtonClick()
+                    onPrestigeClick()
+                },
+                modifier = Modifier
+                    .fillMaxWidth(0.6f)
+                    .height(56.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = NeonPurple.copy(alpha = 0.2f),
+                    contentColor = NeonPurple
+                )
+            ) {
+                Text(
+                    text = "PRESTIGE",
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
             }

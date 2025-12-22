@@ -23,6 +23,8 @@ import com.msa.neontd.game.level.LevelDefinition
 import com.msa.neontd.game.level.LevelRegistry
 import com.msa.neontd.game.level.ProgressionRepository
 import com.msa.neontd.game.achievements.AchievementTracker
+import com.msa.neontd.game.heroes.HeroModifiers
+import com.msa.neontd.game.heroes.HeroRepository
 import com.msa.neontd.game.tutorial.HighlightTarget
 import com.msa.neontd.game.tutorial.TutorialManager
 import com.msa.neontd.game.tutorial.TutorialRepository
@@ -314,6 +316,11 @@ class GLRenderer(
         // Initialize HUD (will be sized in onScreenSizeChanged)
         gameHUD = GameHUD(screenWidth.toFloat(), screenHeight.toFloat())
 
+        // Set up hero ability callback
+        gameHUD.onHeroAbilityActivated = {
+            gameWorld.activateHeroAbility()
+        }
+
         // Set initial HUD values from level configuration
         gameHUD.gold = gameWorld.waveManager.totalGold
         gameHUD.health = gameWorld.waveManager.playerHealth
@@ -591,6 +598,14 @@ class GLRenderer(
                     return true
                 }
 
+                // Check for hero ability button (only when playing, not paused)
+                if (!GameStateManager.isGameEnded() && !GameStateManager.isPaused() &&
+                    gameHUD.handleHeroAbilityTouch(event.x, event.y)) {
+                    // Ability activation is handled by callback set on HUD
+                    Log.d(TAG, "Hero ability activated via HUD button")
+                    return true
+                }
+
                 // Check for restart button (during game over or victory)
                 if (GameStateManager.isGameEnded() && gameHUD.handleRestartTouch(event.x, event.y)) {
                     Log.d(TAG, "Restart button pressed - resetting game")
@@ -717,6 +732,16 @@ class GLRenderer(
                 currentHealth = gameWorld.waveManager.playerHealth,
                 startingHealth = level.startingHealth
             )
+        }
+
+        // Award hero XP if a hero is active
+        val activeHeroId = HeroModifiers.getActiveHeroId()
+        if (activeHeroId != null) {
+            // XP based on stars: 50 base + 25 per star (so 75-125 XP per win)
+            val xpAward = 50 + (stars * 25)
+            val heroRepo = HeroRepository(context)
+            val (newLevel, leveledUp) = heroRepo.addXP(activeHeroId, xpAward)
+            Log.d(TAG, "Awarded $xpAward XP to hero $activeHeroId (now level $newLevel, leveled up: $leveledUp)")
         }
     }
 

@@ -16,6 +16,9 @@ import com.msa.neontd.game.abilities.AbilityUIData
 import com.msa.neontd.game.abilities.TowerAbility
 import com.msa.neontd.game.abilities.TowerAbilityComponent
 import com.msa.neontd.game.abilities.TowerAbilitySystem
+import com.msa.neontd.game.heroes.HeroModifiers
+import com.msa.neontd.game.heroes.HeroAbilityEffect
+import com.msa.neontd.game.prestige.PrestigeModifiers
 import com.msa.neontd.game.synergies.TowerSynergySystem
 import com.msa.neontd.game.components.SpriteComponent
 import com.msa.neontd.game.components.TransformComponent
@@ -290,8 +293,11 @@ class GameWorld(
             }
         )
 
-        // Set starting resources from level definition
-        waveManager.setStartingGold(levelDefinition.startingGold)
+        // Set starting resources from level definition + hero bonus + prestige multiplier
+        val heroGoldBonus = HeroModifiers.getStartingGoldBonus()
+        val baseGold = levelDefinition.startingGold + heroGoldBonus
+        val prestigeGoldMult = PrestigeModifiers.getStartingGoldMultiplier()
+        waveManager.setStartingGold((baseGold * prestigeGoldMult).toInt())
         waveManager.setStartingHealth(levelDefinition.startingHealth)
 
         // Wire up VFXManager to WaveManager
@@ -697,6 +703,109 @@ class GameWorld(
     }
 
     /**
+     * Activate the hero's ability.
+     * Applies effects to all enemies based on the ability type.
+     * @return True if ability was activated
+     */
+    fun activateHeroAbility(): Boolean {
+        val ability = HeroModifiers.activateAbility() ?: return false
+
+        Log.d(TAG, "Activating hero ability: ${ability.name}")
+
+        // Apply effect to all enemies
+        world.forEachWith<EnemyComponent, StatusEffectsComponent, TransformComponent, HealthComponent> { entity, enemy, status, transform, health ->
+            when (ability.effectType) {
+                HeroAbilityEffect.EMP_STUN -> {
+                    // Stun all enemies for the effect duration
+                    status.applyStun(ability.effectValue)
+                    // VFX for stun
+                    vfxManager.onStunApplied(transform.position)
+                }
+                HeroAbilityEffect.BLIZZARD_SLOW -> {
+                    // Apply massive slow to all enemies
+                    status.applySlow(ability.effectValue, ability.durationSeconds)
+                    // VFX for frozen effect
+                    vfxManager.onSlowApplied(transform.position)
+                }
+                HeroAbilityEffect.FIRE_TORNADO -> {
+                    // Apply fire DOT to all enemies (DPS * duration = total damage)
+                    status.applyDot(DamageType.FIRE, ability.effectValue, ability.durationSeconds)
+                    // VFX for burn
+                    vfxManager.onBurnTick(transform.position)
+                }
+            }
+        }
+
+        // Global VFX for ability activation (screen-wide effect)
+        emitHeroAbilityVFX(ability.effectType)
+
+        return true
+    }
+
+    /**
+     * Emit screen-wide VFX for hero ability activation.
+     */
+    private fun emitHeroAbilityVFX(effectType: HeroAbilityEffect) {
+        // Get center of world for burst effect
+        val worldWidth = gridMap.width * gridMap.cellSize
+        val worldHeight = gridMap.height * gridMap.cellSize
+        val centerX = worldWidth / 2f
+        val centerY = worldHeight / 2f
+        val center = Vector2(centerX, centerY)
+
+        when (effectType) {
+            HeroAbilityEffect.EMP_STUN -> {
+                // Cyan electrical burst - chain lightning from center outward
+                repeat(30) { i ->
+                    val angle = (i / 30f) * 2f * PI.toFloat()
+                    val radius = 200f
+                    val randFactor = 0.3f + Math.random().toFloat() * 0.7f
+                    val pos = Vector2(
+                        centerX + cos(angle) * radius * randFactor,
+                        centerY + sin(angle) * radius * randFactor
+                    )
+                    vfxManager.onChainLightning(center, pos)
+                }
+            }
+            HeroAbilityEffect.BLIZZARD_SLOW -> {
+                // Blue ice particles across screen
+                repeat(50) {
+                    val pos = Vector2(
+                        Math.random().toFloat() * worldWidth,
+                        Math.random().toFloat() * worldHeight
+                    )
+                    vfxManager.onSlowApplied(pos)
+                }
+            }
+            HeroAbilityEffect.FIRE_TORNADO -> {
+                // Orange fire particles across screen
+                repeat(40) {
+                    val pos = Vector2(
+                        Math.random().toFloat() * worldWidth,
+                        Math.random().toFloat() * worldHeight
+                    )
+                    vfxManager.onBurnTick(pos)
+                }
+            }
+        }
+    }
+
+    /**
+     * Check if the hero ability is ready to use.
+     */
+    fun canActivateHeroAbility(): Boolean = HeroModifiers.canActivateAbility()
+
+    /**
+     * Get hero ability cooldown progress (0-1, 1 = ready).
+     */
+    fun getHeroAbilityCooldownProgress(): Float = HeroModifiers.getAbilityCooldownProgress()
+
+    /**
+     * Check if there is an active hero.
+     */
+    fun hasActiveHero(): Boolean = HeroModifiers.hasActiveHero()
+
+    /**
      * Get the screen position of the selected tower (for positioning the upgrade panel).
      * Returns null if no tower is selected.
      */
@@ -735,6 +844,9 @@ class GameWorld(
 
         // Update tower abilities (scaled)
         towerAbilitySystem.update(scaledDelta)
+
+        // Update hero ability cooldown (scaled)
+        HeroModifiers.update(scaledDelta)
 
         // Update VFX (scaled for faster particles)
         vfxManager.update(scaledDelta)

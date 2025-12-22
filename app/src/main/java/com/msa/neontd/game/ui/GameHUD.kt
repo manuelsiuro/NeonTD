@@ -8,6 +8,7 @@ import com.msa.neontd.engine.graphics.SpriteBatch
 import com.msa.neontd.engine.resources.Texture
 import com.msa.neontd.game.abilities.AbilityUIData
 import com.msa.neontd.game.data.Encyclopedia
+import com.msa.neontd.game.heroes.HeroModifiers
 import com.msa.neontd.game.entities.EnemyType
 import com.msa.neontd.game.entities.TowerType
 import com.msa.neontd.util.Color
@@ -69,6 +70,10 @@ class GameHUD(
     // Game speed state
     var gameSpeed: Float = 1f
     private var speedButtonArea: Rectangle? = null
+
+    // Hero ability button state
+    private var heroAbilityButtonArea: Rectangle? = null
+    var onHeroAbilityActivated: (() -> Unit)? = null
 
     // Animation timers
     private var gameOverTimer: Float = 0f
@@ -445,6 +450,62 @@ class GameHUD(
         spriteBatch.draw(whiteTexture, speedBtnX + speedBtnSize - speedBorderW, speedBtnY, speedBorderW, speedBtnSize, speedColor.also { it.a = 0.8f }, speedGlow)
         // Speed text (1X, 2X, 3X)
         renderSpeedText(spriteBatch, whiteTexture, speedBtnX + speedBtnSize / 2f, speedBtnY + speedBtnSize / 2f, "${gameSpeed.toInt()}X", speedColor.also { it.a = 1f }, speedGlow)
+
+        // === Hero ability button (before speed button) ===
+        if (HeroModifiers.hasActiveHero()) {
+            val abilityBtnSize = iconSize * 1.1f  // Slightly larger than other buttons
+            val abilityBtnX = speedBtnX - abilityBtnSize - 8f * scaleFactor
+            val abilityBtnY = topBarY + (barHeight - abilityBtnSize) / 2f
+            heroAbilityButtonArea = Rectangle(abilityBtnX, abilityBtnY, abilityBtnSize, abilityBtnSize)
+
+            // Ability button colors based on state
+            val canActivate = HeroModifiers.canActivateAbility()
+            val isActive = HeroModifiers.isAbilityActive()
+            val cooldownProgress = HeroModifiers.getAbilityCooldownProgress()
+
+            // Get hero's primary color
+            val heroColor = HeroModifiers.getActiveHero()?.primaryColor?.let {
+                Color((it shr 16 and 0xFF) / 255f, (it shr 8 and 0xFF) / 255f, (it and 0xFF) / 255f, 1f)
+            } ?: Color.NEON_PURPLE.copy()
+
+            // Background - dim when on cooldown, bright when active/ready
+            val bgAlpha = if (canActivate || isActive) 0.4f else 0.15f
+            val bgGlow = if (isActive) 0.9f else if (canActivate) 0.6f else 0.2f
+            spriteBatch.draw(
+                whiteTexture,
+                abilityBtnX, abilityBtnY,
+                abilityBtnSize, abilityBtnSize,
+                heroColor.copy().also { it.a = bgAlpha },
+                bgGlow
+            )
+
+            // Cooldown overlay (dark fill that shrinks as cooldown progresses)
+            if (!canActivate && !isActive) {
+                val cooldownFillHeight = abilityBtnSize * (1f - cooldownProgress)
+                spriteBatch.draw(
+                    whiteTexture,
+                    abilityBtnX, abilityBtnY + abilityBtnSize - cooldownFillHeight,
+                    abilityBtnSize, cooldownFillHeight,
+                    Color(0f, 0f, 0f, 0.6f),
+                    0f
+                )
+            }
+
+            // Border
+            val abilityBorderW = 2f * scaleFactor
+            val borderAlpha = if (canActivate || isActive) 1f else 0.5f
+            val borderGlow = if (isActive) 0.8f else if (canActivate) 0.5f else 0.2f
+            val borderCol = heroColor.copy().also { it.a = borderAlpha }
+            spriteBatch.draw(whiteTexture, abilityBtnX, abilityBtnY + abilityBtnSize - abilityBorderW, abilityBtnSize, abilityBorderW, borderCol, borderGlow)
+            spriteBatch.draw(whiteTexture, abilityBtnX, abilityBtnY, abilityBtnSize, abilityBorderW, borderCol, borderGlow)
+            spriteBatch.draw(whiteTexture, abilityBtnX, abilityBtnY, abilityBorderW, abilityBtnSize, borderCol, borderGlow)
+            spriteBatch.draw(whiteTexture, abilityBtnX + abilityBtnSize - abilityBorderW, abilityBtnY, abilityBorderW, abilityBtnSize, borderCol, borderGlow)
+
+            // Ability icon (diamond/star shape)
+            renderHeroAbilityIcon(spriteBatch, whiteTexture, abilityBtnX + abilityBtnSize / 2f, abilityBtnY + abilityBtnSize / 2f, abilityBtnSize * 0.35f, heroColor.copy().also { it.a = if (canActivate || isActive) 1f else 0.5f }, borderGlow)
+        } else {
+            heroAbilityButtonArea = null
+        }
 
         // === Options menu button (far right, after wave) ===
         val optBtnSize = iconSize * 0.9f
@@ -861,6 +922,26 @@ class GameHUD(
         batch.draw(texture, cx - lineWidth / 2f, cy - lineHeight / 2f, lineWidth, lineHeight, color, glow)
         // Bottom line
         batch.draw(texture, cx - lineWidth / 2f, cy - spacing - lineHeight / 2f, lineWidth, lineHeight, color, glow)
+    }
+
+    /**
+     * Render a diamond/star icon for hero ability button.
+     */
+    private fun renderHeroAbilityIcon(batch: SpriteBatch, texture: Texture, cx: Float, cy: Float, size: Float, color: Color, glow: Float) {
+        // Diamond shape (rotated square) made of 4 triangles
+        val halfSize = size
+        val thickness = size * 0.35f
+
+        // Top point
+        batch.draw(texture, cx - thickness / 2f, cy + halfSize / 2f, thickness, halfSize / 2f, color, glow)
+        // Bottom point
+        batch.draw(texture, cx - thickness / 2f, cy - halfSize, thickness, halfSize / 2f, color, glow)
+        // Left point
+        batch.draw(texture, cx - halfSize, cy - thickness / 2f, halfSize / 2f, thickness, color, glow)
+        // Right point
+        batch.draw(texture, cx + halfSize / 2f, cy - thickness / 2f, halfSize / 2f, thickness, color, glow)
+        // Center
+        batch.draw(texture, cx - thickness / 2f, cy - thickness / 2f, thickness, thickness, color, glow)
     }
 
     private fun renderTowerSelection(spriteBatch: SpriteBatch, whiteTexture: Texture) {
@@ -2101,6 +2182,29 @@ class GameHUD(
                 // Audio: Button click
                 AudioEventHandler.onButtonClick()
                 return true
+            }
+        }
+        return false
+    }
+
+    /**
+     * Handle touch events for the hero ability button.
+     * @return true if ability button was touched and ability was activated, false otherwise
+     */
+    fun handleHeroAbilityTouch(screenX: Float, screenY: Float): Boolean {
+        val touchY = screenHeight - screenY
+
+        heroAbilityButtonArea?.let { area ->
+            if (screenX >= area.x && screenX <= area.x + area.width &&
+                touchY >= area.y && touchY <= area.y + area.height) {
+                // Check if ability can be activated
+                if (HeroModifiers.canActivateAbility()) {
+                    // Audio: Ability activation
+                    AudioEventHandler.onButtonClick()
+                    // Trigger callback
+                    onHeroAbilityActivated?.invoke()
+                    return true
+                }
             }
         }
         return false

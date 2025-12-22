@@ -58,8 +58,10 @@ import androidx.compose.ui.unit.sp
 import com.msa.neontd.engine.graphics.ShapeType
 import com.msa.neontd.game.data.Encyclopedia
 import com.msa.neontd.game.data.EnemyInfo
+import com.msa.neontd.game.data.HeroInfo
 import com.msa.neontd.game.data.SynergyInfo
 import com.msa.neontd.game.data.TowerInfo
+import com.msa.neontd.game.heroes.HeroPassiveType
 import com.msa.neontd.game.synergies.TowerSynergy
 import kotlin.math.cos
 import kotlin.math.sin
@@ -82,6 +84,7 @@ fun EncyclopediaScreen(onBackClick: () -> Unit) {
     var towerIndex by remember { mutableIntStateOf(0) }
     var enemyIndex by remember { mutableIntStateOf(0) }
     var synergyIndex by remember { mutableIntStateOf(0) }
+    var heroIndex by remember { mutableIntStateOf(0) }
 
     Box(
         modifier = Modifier
@@ -125,9 +128,13 @@ fun EncyclopediaScreen(onBackClick: () -> Unit) {
                             currentIndex = enemyIndex,
                             onIndexChange = { enemyIndex = it }
                         )
-                        else -> SynergyPager(
+                        2 -> SynergyPager(
                             currentIndex = synergyIndex,
                             onIndexChange = { synergyIndex = it }
+                        )
+                        else -> HeroPager(
+                            currentIndex = heroIndex,
+                            onIndexChange = { heroIndex = it }
                         )
                     }
                 }
@@ -215,6 +222,14 @@ private fun TabRow(selectedTab: Int, onTabSelected: (Int) -> Unit) {
             color = NeonYellow,
             modifier = Modifier.weight(1f),
             onClick = { onTabSelected(2) }
+        )
+        TabButton(
+            text = "HEROES",
+            count = Encyclopedia.heroes.size,
+            isSelected = selectedTab == 3,
+            color = NeonOrange,
+            modifier = Modifier.weight(1f),
+            onClick = { onTabSelected(3) }
         )
     }
 }
@@ -1099,4 +1114,199 @@ private fun DrawScope.drawHeart(center: Offset, radius: Float, strokeWidth: Floa
         lineTo(center.x + radius * 0.75f, center.y)
     }
     drawPath(path, color, style = Stroke(strokeWidth))
+}
+
+// ================================
+// HERO PAGER
+// ================================
+
+@Composable
+private fun HeroPager(currentIndex: Int, onIndexChange: (Int) -> Unit) {
+    val heroes = Encyclopedia.heroes
+    val hero = heroes.getOrNull(currentIndex) ?: return
+    val heroColor = Color(hero.definition.primaryColor)
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Navigation header with arrows
+        PagerNavigation(
+            currentIndex = currentIndex,
+            total = heroes.size,
+            itemName = hero.definition.name,
+            accentColor = heroColor,
+            onPrevious = { if (currentIndex > 0) onIndexChange(currentIndex - 1) },
+            onNext = { if (currentIndex < heroes.size - 1) onIndexChange(currentIndex + 1) }
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Hero detail card
+        HeroDetailCard(hero = hero)
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Page indicators
+        PageIndicators(
+            currentIndex = currentIndex,
+            total = heroes.size,
+            color = heroColor,
+            onIndexSelected = onIndexChange
+        )
+    }
+}
+
+@Composable
+private fun HeroDetailCard(hero: HeroInfo) {
+    val scrollState = rememberScrollState()
+    val heroColor = Color(hero.definition.primaryColor)
+
+    val infiniteTransition = rememberInfiniteTransition(label = "heroPulse")
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.6f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse"
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        NeonDarkPanel,
+                        NeonDarkPanel.copy(alpha = 0.95f),
+                        NeonBackground
+                    )
+                )
+            )
+            .border(
+                width = 2.dp,
+                brush = Brush.verticalGradient(
+                    colors = listOf(heroColor.copy(alpha = 0.6f), heroColor.copy(alpha = 0.2f))
+                ),
+                shape = RoundedCornerShape(16.dp)
+            )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(20.dp)
+                .verticalScroll(scrollState),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Hero title and icon
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Hero icon/portrait
+                Box(
+                    modifier = Modifier
+                        .size(70.dp)
+                        .clip(CircleShape)
+                        .background(heroColor.copy(alpha = 0.15f))
+                        .border(2.dp, heroColor.copy(alpha = pulseAlpha * 0.8f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = hero.definition.name.first().toString(),
+                        color = heroColor.copy(alpha = pulseAlpha),
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Column {
+                    Text(
+                        text = hero.definition.title,
+                        color = heroColor.copy(alpha = 0.8f),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = hero.definition.description,
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Boosted Towers
+            val towerNames = hero.definition.affectedTowerTypes.joinToString(", ") { it.displayName }
+            InfoSection(
+                title = "BOOSTED TOWERS",
+                titleColor = heroColor,
+                content = towerNames
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Passive Bonuses
+            val bonusesText = hero.definition.passiveBonuses
+                .groupBy { it.unlocksAtLevel }
+                .toSortedMap()
+                .map { (level, bonuses) ->
+                    val bonusStr = bonuses.joinToString(", ") { bonus ->
+                        when (bonus.type) {
+                            HeroPassiveType.DAMAGE_MULTIPLIER -> "+${(bonus.value * 100).toInt()}% DMG"
+                            HeroPassiveType.RANGE_MULTIPLIER -> "+${(bonus.value * 100).toInt()}% Range"
+                            HeroPassiveType.DOT_MULTIPLIER -> "+${(bonus.value * 100).toInt()}% DOT"
+                            HeroPassiveType.FIRE_RATE_MULTIPLIER -> "+${(bonus.value * 100).toInt()}% Fire Rate"
+                            HeroPassiveType.STARTING_GOLD_BONUS -> "+${bonus.value.toInt()} Gold"
+                            HeroPassiveType.TOWER_COST_REDUCTION -> "-${(bonus.value * 100).toInt()}% Cost"
+                            HeroPassiveType.ABILITY_COOLDOWN_REDUCTION -> "-${(bonus.value * 100).toInt()}% CD"
+                        }
+                    }
+                    "Lv $level: $bonusStr"
+                }
+                .joinToString("\n")
+
+            InfoSection(
+                title = "PASSIVE BONUSES",
+                titleColor = heroColor,
+                content = bonusesText
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Active Ability
+            val ability = hero.definition.activeAbility
+            val abilityText = "${ability.name} (${ability.cooldownSeconds.toInt()}s CD)\n${ability.description}"
+            InfoSection(
+                title = "ACTIVE ABILITY",
+                titleColor = heroColor,
+                content = abilityText
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Playstyle
+            InfoSection(
+                title = "PLAYSTYLE",
+                titleColor = heroColor,
+                content = hero.playstyle
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Tips
+            InfoSection(
+                title = "TIPS",
+                titleColor = NeonGreen,
+                content = hero.tips
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+    }
 }

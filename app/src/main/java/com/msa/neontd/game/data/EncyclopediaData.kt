@@ -2,6 +2,9 @@ package com.msa.neontd.game.data
 
 import com.msa.neontd.game.entities.EnemyType
 import com.msa.neontd.game.entities.TowerType
+import com.msa.neontd.game.heroes.HeroDefinition
+import com.msa.neontd.game.heroes.HeroDefinitions
+import com.msa.neontd.game.heroes.HeroId
 import com.msa.neontd.game.synergies.TowerSynergy
 
 data class TowerInfo(
@@ -24,6 +27,13 @@ data class EnemyInfo(
 data class SynergyInfo(
     val synergy: TowerSynergy,
     val detailedEffect: String,
+    val tips: String
+)
+
+data class HeroInfo(
+    val id: HeroId,
+    val definition: HeroDefinition,
+    val playstyle: String,
     val tips: String
 )
 
@@ -302,9 +312,32 @@ object Encyclopedia {
         )
     )
 
+    val heroes: List<HeroInfo> = listOf(
+        HeroInfo(
+            id = HeroId.COMMANDER_VOLT,
+            definition = HeroDefinitions.COMMANDER_VOLT,
+            playstyle = "Aggressive lightning specialist. Best with TESLA and CHAIN towers. Use EMP Blast to stun waves and create breathing room.",
+            tips = "Build a cluster of TESLA and CHAIN towers to maximize hero bonuses. Save EMP for dangerous waves or emergencies."
+        ),
+        HeroInfo(
+            id = HeroId.LADY_FROST,
+            definition = HeroDefinitions.LADY_FROST,
+            playstyle = "Defensive crowd controller. Excels with SLOW and TEMPORAL towers. Blizzard ability provides massive map-wide slow.",
+            tips = "Focus on extending enemy travel time. Place SLOW towers early in the path and TEMPORAL at choke points."
+        ),
+        HeroInfo(
+            id = HeroId.PYRO,
+            definition = HeroDefinitions.PYRO,
+            playstyle = "Sustained damage specialist. Boosts FLAME and POISON towers. Fire Tornado provides excellent wave clear.",
+            tips = "Stack DOT effects for devastating damage. Combine POISON to apply, then FLAME to amplify with Toxic Fire synergy."
+        )
+    )
+
     fun getTowerInfo(type: TowerType): TowerInfo? = towers.find { it.type == type }
 
     fun getEnemyInfo(type: EnemyType): EnemyInfo? = enemies.find { it.type == type }
 
     fun getSynergyInfo(synergy: TowerSynergy): SynergyInfo? = synergies.find { it.synergy == synergy }
+
+    fun getHeroInfo(id: HeroId): HeroInfo? = heroes.find { it.id == id }
 }

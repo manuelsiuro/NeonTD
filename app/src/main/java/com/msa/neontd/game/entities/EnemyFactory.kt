@@ -11,6 +11,7 @@ import com.msa.neontd.game.world.GridPosition
 import com.msa.neontd.game.world.PathManager
 import com.msa.neontd.engine.vfx.VFXManager
 import com.msa.neontd.game.challenges.ChallengeModifiers
+import com.msa.neontd.game.prestige.PrestigeModifiers
 import com.msa.neontd.util.Vector2
 
 class EnemyFactory(
@@ -50,9 +51,13 @@ class EnemyFactory(
         val challengeArmorMult = ChallengeModifiers.getEnemyArmorMultiplier()
         val challengeGoldMult = ChallengeModifiers.getEnemyGoldMultiplier()
 
-        val scaledHealth = type.baseHealth * waveMultiplier * challengeHealthMult
+        // Apply both challenge and prestige modifiers to enemy stats
+        val prestigeHealthMult = PrestigeModifiers.getEnemyHealthMultiplier()
+        val prestigeSpeedMult = PrestigeModifiers.getEnemySpeedMultiplier()
+
+        val scaledHealth = type.baseHealth * waveMultiplier * challengeHealthMult * prestigeHealthMult
         val scaledArmor = type.baseArmor * (1f + (waveNumber - 1) * 0.05f) * challengeArmorMult
-        val scaledSpeed = type.baseSpeed * challengeSpeedMult
+        val scaledSpeed = type.baseSpeed * challengeSpeedMult * prestigeSpeedMult
 
         // Health
         val healthComponent = if (type == EnemyType.SHIELDED) {

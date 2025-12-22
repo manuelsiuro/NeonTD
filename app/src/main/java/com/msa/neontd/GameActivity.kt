@@ -26,6 +26,12 @@ import com.msa.neontd.game.challenges.ChallengeConverter
 import com.msa.neontd.game.challenges.ChallengeModifiers
 import com.msa.neontd.game.editor.CustomLevelConverter
 import com.msa.neontd.game.editor.CustomLevelData
+import com.msa.neontd.game.heroes.HeroDefinitions
+import com.msa.neontd.game.heroes.HeroId
+import com.msa.neontd.game.heroes.HeroModifiers
+import com.msa.neontd.game.heroes.HeroRepository
+import com.msa.neontd.game.prestige.PrestigeModifiers
+import com.msa.neontd.game.prestige.PrestigeRepository
 import kotlinx.serialization.json.Json
 
 class GameActivity : ComponentActivity() {
@@ -56,6 +62,12 @@ class GameActivity : ComponentActivity() {
          * When present, loads a challenge with modifiers applied.
          */
         const val EXTRA_CHALLENGE_CONFIG_JSON = "extra_challenge_config_json"
+
+        /**
+         * Intent extra key for hero ID (name string).
+         * When present, sets the active hero for stat bonuses and abilities.
+         */
+        const val EXTRA_HERO_ID = "extra_hero_id"
     }
 
     private lateinit var glSurfaceView: NeonGLSurfaceView
@@ -111,6 +123,32 @@ class GameActivity : ComponentActivity() {
         } else {
             null
         }
+
+        // Parse hero ID and set active hero
+        val heroIdString = intent.getStringExtra(EXTRA_HERO_ID)
+        if (heroIdString != null) {
+            try {
+                val heroId = HeroId.valueOf(heroIdString)
+                val heroDefinition = HeroDefinitions.getById(heroId)
+                val heroRepository = HeroRepository(this)
+                val heroLevel = heroRepository.getSelectedHeroLevel()
+
+                HeroModifiers.setActiveHero(heroDefinition, heroLevel)
+                Log.d(TAG, "Loaded hero: ${heroDefinition.name} (Level $heroLevel)")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to parse hero ID: $heroIdString", e)
+                HeroModifiers.clearHero()
+            }
+        } else {
+            // No hero selected - clear any previous hero
+            HeroModifiers.clearHero()
+        }
+
+        // Load prestige modifiers
+        val prestigeRepository = PrestigeRepository(this)
+        val prestigeData = prestigeRepository.loadData()
+        PrestigeModifiers.setPrestigeData(prestigeData)
+        Log.d(TAG, "Loaded prestige level: ${prestigeData.currentPrestigeLevel} (${prestigeData.getPrestigeTierName()})")
 
         // Step 3: Initialize renderer - with challenge, custom level, or level ID
         val levelId = intent.getIntExtra(EXTRA_LEVEL_ID, 1)
@@ -278,6 +316,10 @@ class GameActivity : ComponentActivity() {
         GameStateManager.removeListener(AudioStateListener)
         // Clear challenge modifiers
         ChallengeModifiers.clearModifiers()
+        // Clear hero modifiers
+        HeroModifiers.clearHero()
+        // Clear prestige modifiers
+        PrestigeModifiers.clearPrestige()
         // Reset game state for clean next launch (don't release AudioManager - MainActivity owns it)
         GameStateManager.reset()
         super.onDestroy()

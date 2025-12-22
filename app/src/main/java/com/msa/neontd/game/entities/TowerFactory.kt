@@ -6,6 +6,8 @@ import com.msa.neontd.game.abilities.TowerAbility
 import com.msa.neontd.game.abilities.TowerAbilityComponent
 import com.msa.neontd.game.achievements.CosmeticRewards
 import com.msa.neontd.game.achievements.TowerSkinsRepository
+import com.msa.neontd.game.heroes.HeroModifiers
+import com.msa.neontd.game.prestige.PrestigeModifiers
 import com.msa.neontd.game.components.GridPositionComponent
 import com.msa.neontd.game.components.SpriteComponent
 import com.msa.neontd.game.components.TransformComponent
@@ -190,10 +192,24 @@ class TowerFactory(
         val fireRatePoints = upgrade.getStatPoints(UpgradeableStat.FIRE_RATE)
         val currentLevel = upgrade.currentLevel
 
-        // Primary stats
-        stats.damage = UpgradeFormulas.calculateEffectiveDamage(baseStats.baseDamage, damagePoints)
-        stats.range = UpgradeFormulas.calculateEffectiveRange(baseStats.baseRange, rangePoints)
-        stats.fireRate = UpgradeFormulas.calculateEffectiveFireRate(baseStats.baseFireRate, fireRatePoints)
+        // Primary stats from upgrades
+        var damage = UpgradeFormulas.calculateEffectiveDamage(baseStats.baseDamage, damagePoints)
+        var range = UpgradeFormulas.calculateEffectiveRange(baseStats.baseRange, rangePoints)
+        var fireRate = UpgradeFormulas.calculateEffectiveFireRate(baseStats.baseFireRate, fireRatePoints)
+
+        // Apply hero modifiers (only for affected tower types)
+        damage *= HeroModifiers.getTowerDamageMultiplier(tower.type)
+        range *= HeroModifiers.getTowerRangeMultiplier(tower.type)
+        fireRate *= HeroModifiers.getTowerFireRateMultiplier(tower.type)
+
+        // Apply prestige modifiers (all tower types)
+        damage *= PrestigeModifiers.getTowerDamageMultiplier()
+        range *= PrestigeModifiers.getTowerRangeMultiplier()
+        fireRate *= PrestigeModifiers.getTowerFireRateMultiplier()
+
+        stats.damage = damage
+        stats.range = range
+        stats.fireRate = fireRate
 
         // Secondary stats based on tower type
         when (tower.type) {
@@ -209,7 +225,10 @@ class TowerFactory(
                 stats.chainCount = UpgradeFormulas.calculateChainCount(baseStats.baseChainCount, currentLevel)
             }
             TowerType.POISON, TowerType.FLAME -> {
-                stats.dotDamage = UpgradeFormulas.calculateDotDamage(baseStats.baseDotDamage, damagePoints)
+                var dotDamage = UpgradeFormulas.calculateDotDamage(baseStats.baseDotDamage, damagePoints)
+                // Apply hero DOT multiplier for FLAME/POISON towers
+                dotDamage *= HeroModifiers.getTowerDotMultiplier(tower.type)
+                stats.dotDamage = dotDamage
                 stats.dotDuration = UpgradeFormulas.calculateDotDuration(baseStats.baseDotDuration, fireRatePoints)
             }
             TowerType.SLOW, TowerType.TEMPORAL -> {
