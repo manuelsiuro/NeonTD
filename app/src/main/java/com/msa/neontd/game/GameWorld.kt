@@ -36,6 +36,8 @@ import com.msa.neontd.game.world.PathManager
 import com.msa.neontd.engine.vfx.VFXManager
 import com.msa.neontd.engine.graphics.ShapeType
 import com.msa.neontd.game.challenges.ChallengeModifiers
+import com.msa.neontd.game.components.ModelComponent
+import com.msa.neontd.config.RenderConfig
 import com.msa.neontd.util.Color
 import com.msa.neontd.util.Vector2
 import kotlin.math.PI
@@ -927,8 +929,9 @@ class GameWorld(
         }
     }
 
-    fun render(spriteBatch: SpriteBatch, shader: ShaderProgram, whiteTexture: Texture, interpolation: Float) {
-        spriteBatch.setProjectionMatrix(camera.getCombinedMatrix())
+    fun render(spriteBatch: SpriteBatch, shader: ShaderProgram, whiteTexture: Texture, interpolation: Float, overrideMatrix: FloatArray? = null) {
+        // Use override matrix if provided (for isometric view), otherwise use 2D camera
+        spriteBatch.setProjectionMatrix(overrideMatrix ?: camera.getCombinedMatrix())
         spriteBatch.begin(shader)
 
         // Render grid
@@ -1303,6 +1306,16 @@ class GameWorld(
 
         world.forEachWith<TransformComponent, SpriteComponent> { entity, transform, sprite ->
             if (!sprite.visible) return@forEachWith
+
+            // Skip 2D sprite rendering for entities with 3D models when 3D is enabled
+            if (RenderConfig.use3DRendering) {
+                val hasModel = world.getComponent<ModelComponent>(entity) != null
+                val isTower = world.getComponent<TowerComponent>(entity) != null
+                val isEnemy = world.getComponent<EnemyComponent>(entity) != null
+
+                if (hasModel && isTower && RenderConfig.use3DTowers) return@forEachWith
+                if (hasModel && isEnemy && RenderConfig.use3DEnemies) return@forEachWith
+            }
 
             val pos = transform.interpolatedPosition(interpolation)
             renderables.add(RenderData(

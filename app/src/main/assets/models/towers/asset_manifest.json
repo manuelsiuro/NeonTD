@@ -1,0 +1,108 @@
+{
+  "version": "1.0",
+  "generated": "2025-12-28",
+  "towers": {
+    "tower_temporal": {
+      "file": "tower_temporal.glb",
+      "size_bytes": 16520,
+      "triangles": 208,
+      "color": "NeonWhite"
+    },
+    "tower_buff": {
+      "file": "tower_buff.glb",
+      "size_bytes": 26116,
+      "triangles": 340,
+      "color": "NeonYellow"
+    },
+    "tower_sniper": {
+      "file": "tower_sniper.glb",
+      "size_bytes": 18116,
+      "triangles": 224,
+      "color": "NeonBlue"
+    },
+    "tower_poison": {
+      "file": "tower_poison.glb",
+      "size_bytes": 21804,
+      "triangles": 264,
+      "color": "NeonPoisonGreen"
+    },
+    "tower_splash": {
+      "file": "tower_splash.glb",
+      "size_bytes": 18912,
+      "triangles": 240,
+      "color": "NeonOrange"
+    },
+    "tower_tesla": {
+      "file": "tower_tesla.glb",
+      "size_bytes": 30412,
+      "triangles": 402,
+      "color": "NeonPurple"
+    },
+    "tower_laser": {
+      "file": "tower_laser.glb",
+      "size_bytes": 20672,
+      "triangles": 264,
+      "color": "NeonGreen"
+    },
+    "tower_chain": {
+      "file": "tower_chain.glb",
+      "size_bytes": 29680,
+      "triangles": 364,
+      "color": "NeonChainPurple"
+    },
+    "tower_slow": {
+      "file": "tower_slow.glb",
+      "size_bytes": 18716,
+      "triangles": 204,
+      "color": "NeonIce"
+    },
+    "tower_flame": {
+      "file": "tower_flame.glb",
+      "size_bytes": 12148,
+      "triangles": 140,
+      "color": "NeonRed"
+    },
+    "tower_pulse": {
+      "file": "tower_pulse.glb",
+      "size_bytes": 27612,
+      "triangles": 364,
+      "color": "NeonCyan",
+      "lod": [
+        "tower_pulse_lod1.glb",
+        "tower_pulse_lod2.glb"
+      ]
+    },
+    "tower_debuff": {
+      "file": "tower_debuff.glb",
+      "size_bytes": 20352,
+      "triangles": 248,
+      "color": "NeonPink"
+    },
+    "tower_gravity": {
+      "file": "tower_gravity.glb",
+      "size_bytes": 30244,
+      "triangles": 396,
+      "color": "NeonDarkPurple"
+    },
+    "tower_missile": {
+      "file": "tower_missile.glb",
+      "size_bytes": 16152,
+      "triangles": 200,
+      "color": "NeonMissileRed"
+    },
+    "tower_pulse_lod2": {
+      "file": "tower_pulse_lod2.glb",
+      "size_bytes": 5944,
+      "triangles": 44,
+      "color": "NeonCyan",
+      "lod_level": 2
+    },
+    "tower_pulse_lod1": {
+      "file": "tower_pulse_lod1.glb",
+      "size_bytes": 13596,
+      "triangles": 160,
+      "color": "NeonCyan",
+      "lod_level": 1
+    }
+  }
+}

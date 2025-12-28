@@ -12,6 +12,8 @@ import com.msa.neontd.game.world.PathManager
 import com.msa.neontd.engine.vfx.VFXManager
 import com.msa.neontd.game.challenges.ChallengeModifiers
 import com.msa.neontd.game.prestige.PrestigeModifiers
+import com.msa.neontd.config.RenderConfig
+import com.msa.neontd.game.components.ModelComponent
 import com.msa.neontd.util.Vector2
 
 class EnemyFactory(
@@ -94,6 +96,17 @@ class EnemyFactory(
             layer = 5,
             shapeType = type.shape
         ))
+
+        // 3D Model (if enabled)
+        if (RenderConfig.use3DEnemies) {
+            val modelPath = getEnemyModelPath(type)
+            world.addComponent(entity, ModelComponent(
+                assetPath = modelPath,
+                color = type.baseColor.copy(),
+                glow = glowIntensity,
+                scale = gridMap.cellSize * 0.6f * type.sizeScale  // Scale to ~60% of cell
+            ))
+        }
 
         // Velocity (with challenge speed modifier)
         world.addComponent(entity, VelocityComponent(
@@ -251,5 +264,30 @@ class EnemyFactory(
         }
 
         return splitEntities
+    }
+
+    /**
+     * Get the 3D model asset path for an enemy type.
+     */
+    private fun getEnemyModelPath(type: EnemyType): String {
+        val modelName = when (type) {
+            EnemyType.BASIC -> "enemy_basic"
+            EnemyType.FAST -> "enemy_fast"
+            EnemyType.TANK -> "enemy_tank"
+            EnemyType.FLYING -> "enemy_flying"
+            EnemyType.HEALER -> "enemy_healer"
+            EnemyType.SHIELDED -> "enemy_shielded"
+            EnemyType.SPAWNER -> "enemy_spawner"
+            EnemyType.PHASING -> "enemy_phasing"
+            EnemyType.SPLITTING -> "enemy_splitting"
+            EnemyType.REGENERATING -> "enemy_regenerating"
+            EnemyType.STEALTH -> "enemy_stealth"
+            EnemyType.FIRE_ELEMENTAL -> "enemy_fire"
+            EnemyType.ICE_ELEMENTAL -> "enemy_ice"
+            EnemyType.LIGHTNING_ELEMENTAL -> "enemy_lightning"
+            EnemyType.MINI_BOSS -> "enemy_miniboss"
+            EnemyType.BOSS -> "enemy_boss"
+        }
+        return "models/enemies/$modelName.glb"
     }
 }

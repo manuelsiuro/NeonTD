@@ -2,6 +2,8 @@ package com.msa.neontd.game.components
 
 import com.msa.neontd.engine.ecs.Component
 import com.msa.neontd.engine.graphics.ShapeType
+import com.msa.neontd.engine.graphics3d.LODModel
+import com.msa.neontd.engine.graphics3d.Model
 import com.msa.neontd.engine.resources.TextureRegion
 import com.msa.neontd.util.Color
 import com.msa.neontd.util.Vector2
@@ -134,3 +136,78 @@ data class GridPositionComponent(
     var gridX: Int,
     var gridY: Int
 ) : Component
+
+/**
+ * Component for 3D model rendering.
+ * Supports LOD (Level of Detail) for performance optimization.
+ */
+data class ModelComponent(
+    /**
+     * The LOD model containing all detail levels.
+     * Null if model hasn't been loaded yet.
+     */
+    var lodModel: LODModel? = null,
+
+    /**
+     * Currently active model based on distance to camera.
+     * Updated automatically by the rendering system.
+     */
+    var activeModel: Model? = null,
+
+    /**
+     * Current LOD level index (0 = highest detail).
+     */
+    var currentLOD: Int = 0,
+
+    /**
+     * Color tint applied to the model.
+     */
+    var color: Color = Color.WHITE,
+
+    /**
+     * Glow/emission intensity for neon effects.
+     * Higher values make the model brighter in bloom.
+     */
+    var glow: Float = 0f,
+
+    /**
+     * Whether the model should be rendered.
+     */
+    var visible: Boolean = true,
+
+    /**
+     * Asset path for lazy loading.
+     */
+    var assetPath: String = "",
+
+    /**
+     * Y-axis rotation offset for model orientation.
+     */
+    var yRotation: Float = 0f,
+
+    /**
+     * Scale multiplier for the model.
+     */
+    var scale: Float = 1f
+) : Component {
+
+    /**
+     * Check if the model is ready for rendering.
+     */
+    fun isReady(): Boolean = lodModel?.isInitialized() == true
+
+    /**
+     * Update the active model based on distance to camera.
+     * Returns true if LOD level changed.
+     */
+    fun updateLOD(distance: Float): Boolean {
+        val lod = lodModel ?: return false
+        val newLOD = lod.getLODIndex(distance)
+        if (newLOD != currentLOD) {
+            currentLOD = newLOD
+            activeModel = lod.getLOD(distance)
+            return true
+        }
+        return false
+    }
+}

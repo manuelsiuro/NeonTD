@@ -8,7 +8,9 @@ import com.msa.neontd.game.achievements.CosmeticRewards
 import com.msa.neontd.game.achievements.TowerSkinsRepository
 import com.msa.neontd.game.heroes.HeroModifiers
 import com.msa.neontd.game.prestige.PrestigeModifiers
+import com.msa.neontd.config.RenderConfig
 import com.msa.neontd.game.components.GridPositionComponent
+import com.msa.neontd.game.components.ModelComponent
 import com.msa.neontd.game.components.SpriteComponent
 import com.msa.neontd.game.components.TransformComponent
 import com.msa.neontd.game.synergies.TowerSynergyComponent
@@ -49,6 +51,17 @@ class TowerFactory(
             layer = 10,
             shapeType = type.shape
         ))
+
+        // 3D Model (if enabled)
+        if (RenderConfig.use3DTowers) {
+            val modelPath = getTowerModelPath(type)
+            world.addComponent(entity, ModelComponent(
+                assetPath = modelPath,
+                color = towerColor,
+                glow = 0.6f,
+                scale = gridMap.cellSize * 0.8f  // Scale model to fit grid cell (~80% of cell)
+            ))
+        }
 
         // Tower identity
         world.addComponent(entity, TowerComponent(type))
@@ -355,6 +368,29 @@ class TowerFactory(
         }
         // Fall back to base color
         return type.baseColor.copy()
+    }
+
+    /**
+     * Get the 3D model asset path for a tower type.
+     */
+    private fun getTowerModelPath(type: TowerType): String {
+        val modelName = when (type) {
+            TowerType.PULSE -> "tower_pulse"
+            TowerType.SNIPER -> "tower_sniper"
+            TowerType.SPLASH -> "tower_splash"
+            TowerType.FLAME -> "tower_flame"
+            TowerType.SLOW -> "tower_slow"
+            TowerType.TESLA -> "tower_tesla"
+            TowerType.GRAVITY -> "tower_gravity"
+            TowerType.TEMPORAL -> "tower_temporal"
+            TowerType.LASER -> "tower_laser"
+            TowerType.POISON -> "tower_poison"
+            TowerType.MISSILE -> "tower_missile"
+            TowerType.BUFF -> "tower_buff"
+            TowerType.DEBUFF -> "tower_debuff"
+            TowerType.CHAIN -> "tower_chain"
+        }
+        return "models/towers/$modelName.glb"
     }
 }
 

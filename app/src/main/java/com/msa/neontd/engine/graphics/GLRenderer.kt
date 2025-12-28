@@ -15,6 +15,17 @@ import com.msa.neontd.engine.resources.Texture
 import com.msa.neontd.engine.shaders.ShaderManager
 import com.msa.neontd.engine.shaders.ShaderProgram
 import com.msa.neontd.engine.vfx.BloomEffect
+import com.msa.neontd.config.RenderConfig
+import com.msa.neontd.engine.graphics3d.GLTFLoader
+import com.msa.neontd.engine.graphics3d.ModelBatch
+import com.msa.neontd.engine.graphics3d.ModelCache
+import com.msa.neontd.game.components.ModelComponent
+import com.msa.neontd.game.components.TransformComponent
+import com.msa.neontd.game.entities.TowerComponent
+import com.msa.neontd.game.entities.EnemyComponent
+import com.msa.neontd.util.Matrix4x4
+import com.msa.neontd.util.Quaternion
+import com.msa.neontd.util.Vector3
 import com.msa.neontd.game.GameWorld
 import com.msa.neontd.game.challenges.ChallengeConverter
 import com.msa.neontd.game.challenges.ChallengeRepository
@@ -82,6 +93,19 @@ class GLRenderer(
     // Bloom post-processing
     private lateinit var bloomEffect: BloomEffect
     private var bloomEnabled: Boolean = true
+
+    // 3D rendering components (Phase 1)
+    private var modelBatch: ModelBatch? = null
+    private var modelShader: ShaderProgram? = null
+    private var modelCache: ModelCache? = null
+    private val viewMatrix3D = Matrix4x4.identity()
+    private val projectionMatrix3D = Matrix4x4.identity()
+    private val combinedMatrix3D = FloatArray(16)  // For 2D sprite rendering in isometric
+
+    // Thread-safe inverse matrices for touch handling (volatile for visibility across threads)
+    @Volatile private var inverseProjMatrix3D: Matrix4x4 = Matrix4x4.identity()
+    @Volatile private var inverseViewMatrix3D: Matrix4x4 = Matrix4x4.identity()
+    @Volatile private var matrices3DInitialized = false
 
     // Tutorial system
     private var tutorialManager: TutorialManager? = null
@@ -229,6 +253,22 @@ class GLRenderer(
         // Initialize input manager
         inputManager = InputManager(camera)
 
+        // Set up isometric coordinate converter if in isometric mode
+        if (RenderConfig.use3DCamera) {
+            inputManager.customScreenToWorld = { screenX, screenY ->
+                val worldPos = screenToWorld(screenX, screenY)
+                if (worldPos != null) {
+                    val (fallbackX, fallbackY) = camera.screenToWorld(screenX, screenY)
+                    Log.d(TAG, "Touch: screen($screenX, $screenY) -> isometric(${worldPos.x.toInt()}, ${worldPos.y.toInt()}) vs 2D($fallbackX, $fallbackY)")
+                    Pair(worldPos.x, worldPos.y)
+                } else {
+                    // Fallback to 2D camera conversion if ray miss
+                    Log.w(TAG, "Touch: screen($screenX, $screenY) -> ray miss, using 2D fallback")
+                    camera.screenToWorld(screenX, screenY)
+                }
+            }
+        }
+
         // Load level - challenge, custom, or from registry
         val customGridMap: GridMap?
         val isEndlessMode: Boolean
@@ -360,6 +400,11 @@ class GLRenderer(
         bloomEffect.exposure = 1.1f
         bloomEffect.blurPasses = 3
 
+        // Initialize 3D rendering components if enabled
+        if (RenderConfig.use3DRendering) {
+            initialize3DRendering()
+        }
+
         Log.d(TAG, "initializeResources - Complete")
     }
 
@@ -398,6 +443,11 @@ class GLRenderer(
     }
 
     private fun update(deltaTime: Float) {
+        // Update 3D matrices for isometric mode (needed for touch coordinate conversion)
+        if (RenderConfig.use3DCamera) {
+            update3DMatrices()
+        }
+
         // Check if tutorial should pause the game
         val tutorialPausesGame = tutorialManager?.shouldPauseGame == true
 
@@ -501,11 +551,26 @@ class GLRenderer(
         // Begin scene capture to FBO
         bloomEffect.beginSceneCapture()
 
-        // Clear the scene FBO
-        GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
+        // Clear the scene FBO (color and depth if 3D enabled)
+        if (RenderConfig.use3DRendering) {
+            GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT)
+        } else {
+            GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
+        }
 
-        // Render game world to FBO
-        gameWorld.render(spriteBatch, spriteShader, whitePixelTexture, interpolation)
+        // Update 3D matrices if in isometric mode
+        if (RenderConfig.use3DCamera) {
+            update3DMatrices()
+        }
+
+        // Render game world - use isometric matrix if in isometric mode
+        val worldMatrix = if (RenderConfig.use3DCamera) combinedMatrix3D else null
+        gameWorld.render(spriteBatch, spriteShader, whitePixelTexture, interpolation, worldMatrix)
+
+        // Render 3D content on top if enabled
+        if (RenderConfig.use3DRendering) {
+            render3DContent(interpolation)
+        }
 
         // End scene capture
         bloomEffect.endSceneCapture()
@@ -522,8 +587,19 @@ class GLRenderer(
         // Clear the screen
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT)
 
-        // Render game world
-        gameWorld.render(spriteBatch, spriteShader, whitePixelTexture, interpolation)
+        // Update 3D matrices if in isometric mode
+        if (RenderConfig.use3DCamera) {
+            update3DMatrices()
+        }
+
+        // Render game world - use isometric matrix if in isometric mode
+        val worldMatrix = if (RenderConfig.use3DCamera) combinedMatrix3D else null
+        gameWorld.render(spriteBatch, spriteShader, whitePixelTexture, interpolation, worldMatrix)
+
+        // Render 3D content on top if enabled
+        if (RenderConfig.use3DRendering) {
+            render3DContent(interpolation)
+        }
 
         // Render HUD on top (using screen coordinates)
         renderHUD()
@@ -936,6 +1012,417 @@ class GLRenderer(
         }
 
         Log.d(TAG, "Achievement system initialized")
+    }
+
+    // ============================================
+    // 3D RENDERING METHODS (Phase 1)
+    // ============================================
+
+    /**
+     * Initialize 3D rendering components.
+     * Only called if RenderConfig.use3DRendering is true.
+     */
+    private fun initialize3DRendering() {
+        Log.d(TAG, "Initializing 3D rendering components")
+
+        // Load model shader
+        modelShader = shaderManager.loadShader(
+            "model",
+            "shaders/model.vert",
+            "shaders/model.frag"
+        )
+
+        // Initialize model batch for instanced rendering
+        modelBatch = ModelBatch(RenderConfig.maxInstancesPerBatch)
+        modelBatch?.initialize()
+
+        // Initialize model cache for loading/caching GLB files
+        modelCache = ModelCache(GLTFLoader(context))
+
+        // Preload common models
+        preload3DModels()
+
+        Log.d(TAG, "3D rendering initialization complete")
+    }
+
+    /**
+     * Preload commonly used 3D models.
+     */
+    private fun preload3DModels() {
+        val cache = modelCache ?: return
+
+        try {
+            // Preload tower models (will be loaded on-demand if not found)
+            val towerModels = listOf(
+                "models/towers/tower_pulse.glb",
+                "models/towers/tower_sniper.glb",
+                "models/towers/tower_splash.glb"
+            )
+            // Only preload if assets exist
+            towerModels.forEach { path ->
+                try {
+                    cache.get(path)
+                    Log.d(TAG, "Preloaded: $path")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Could not preload $path: ${e.message}")
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Model preloading failed: ${e.message}")
+        }
+    }
+
+    /**
+     * Update 3D view and projection matrices.
+     * Supports both flat top-down view (Phase 1) and isometric view (Phase 2).
+     */
+    private fun update3DMatrices() {
+        val viewWidth = screenWidth / camera.zoom
+        val viewHeight = screenHeight / camera.zoom
+
+        if (RenderConfig.use3DCamera) {
+            // Phase 2: Isometric camera view
+            updateIsometricMatrices(viewWidth, viewHeight)
+        } else {
+            // Phase 1: Flat top-down view matching 2D camera
+            updateFlatTopDownMatrices(viewWidth, viewHeight)
+        }
+    }
+
+    /**
+     * Phase 1: Flat top-down view matching 2D exactly.
+     */
+    private fun updateFlatTopDownMatrices(viewWidth: Float, viewHeight: Float) {
+        val halfWidth = viewWidth / 2f
+        val halfHeight = viewHeight / 2f
+
+        // Projection: centered at origin, matching 2D camera
+        projectionMatrix3D.setOrthographic(
+            -halfWidth, halfWidth,    // left, right
+            -halfHeight, halfHeight,  // bottom, top
+            -100f, 100f               // near, far
+        )
+
+        // View: translate to camera position (same as 2D camera)
+        viewMatrix3D.setIdentity()
+        viewMatrix3D.translate(-camera.x, -camera.y, 0f)
+    }
+
+    /**
+     * Phase 2: TRUE Isometric camera view.
+     *
+     * The camera is positioned above and behind the scene, looking down at the
+     * game plane (XY) from an isometric angle. This creates a proper isometric
+     * view where the entire scene appears tilted.
+     *
+     * Coordinate system:
+     * - X: horizontal (right)
+     * - Y: vertical on game map (up/forward on map)
+     * - Z: height above ground (up in world)
+     *
+     * For isometric at elevation angle θ:
+     * - Camera looks down at the XY plane from angle θ above horizontal
+     * - Classic isometric uses ~35.264° (arctan(1/√2)) or ~30°
+     */
+    private fun updateIsometricMatrices(viewWidth: Float, viewHeight: Float) {
+        val halfWidth = viewWidth / 2f
+        val halfHeight = viewHeight / 2f
+
+        // Orthographic projection (true isometric - no perspective distortion)
+        // Wider Z range to accommodate the tilted view
+        projectionMatrix3D.setOrthographic(
+            -halfWidth, halfWidth,
+            -halfHeight, halfHeight,
+            -5000f, 5000f
+        )
+
+        // Camera target: center of current view (follows 2D camera)
+        val targetX = camera.x
+        val targetY = camera.y
+        val targetZ = 0f
+
+        // Calculate camera position for isometric view
+        val elevationRad = Math.toRadians(RenderConfig.cameraElevation.toDouble()).toFloat()
+        val azimuthRad = Math.toRadians(RenderConfig.cameraRotation.toDouble()).toFloat()
+        val cameraDistance = 1000f  // Distance from target (arbitrary for ortho, affects clipping)
+
+        // Camera position: above and behind the target, rotated by azimuth
+        // For true isometric with diamond grid, use 45° azimuth rotation
+        // Spherical coordinates:
+        // - horizontal distance = cameraDistance * cos(elevation)
+        // - X offset = horizontal * sin(azimuth)
+        // - Y offset = -horizontal * cos(azimuth) (negative = behind)
+        // - Z offset = cameraDistance * sin(elevation) (above)
+        val horizontalDist = cameraDistance * kotlin.math.cos(elevationRad)
+        val cameraX = targetX + horizontalDist * kotlin.math.sin(azimuthRad)
+        val cameraY = targetY - horizontalDist * kotlin.math.cos(azimuthRad)
+        val cameraZ = cameraDistance * kotlin.math.sin(elevationRad)
+
+        // Set up lookAt view matrix
+        viewMatrix3D.setLookAt(
+            Vector3(cameraX, cameraY, cameraZ),  // eye position
+            Vector3(targetX, targetY, targetZ),   // look at target
+            Vector3(0f, 0f, 1f)                    // up vector (Z is up in world space)
+        )
+
+        // Compute combined matrix (projection * view) for 2D sprite rendering
+        val combined = projectionMatrix3D.multiply(viewMatrix3D)
+        System.arraycopy(combined.data, 0, combinedMatrix3D, 0, 16)
+
+        // Update inverse matrices for thread-safe touch handling
+        inverseProjMatrix3D = projectionMatrix3D.inverse()
+        inverseViewMatrix3D = viewMatrix3D.inverse()
+        matrices3DInitialized = true
+    }
+
+    /**
+     * Convert screen coordinates to world coordinates on the game plane (Z=0).
+     * Uses ray-plane intersection from the isometric camera.
+     *
+     * @param screenX Screen X coordinate (0 = left edge)
+     * @param screenY Screen Y coordinate (0 = top edge)
+     * @return World coordinates on the XY plane, or null if no intersection
+     */
+    fun screenToWorld(screenX: Float, screenY: Float): Vector3? {
+        if (!RenderConfig.use3DCamera) {
+            // Flat view: simple 2D conversion
+            val worldX = camera.x + (screenX - screenWidth / 2f) / camera.zoom
+            val worldY = camera.y + (screenHeight / 2f - screenY) / camera.zoom
+            return Vector3(worldX, worldY, 0f)
+        }
+
+        // Wait for matrices to be initialized
+        if (!matrices3DInitialized) {
+            // Fallback to 2D conversion if 3D matrices not ready
+            Log.w(TAG, "3D matrices not initialized yet!")
+            val worldX = camera.x + (screenX - screenWidth / 2f) / camera.zoom
+            val worldY = camera.y + (screenHeight / 2f - screenY) / camera.zoom
+            return Vector3(worldX, worldY, 0f)
+        }
+        // Isometric view: orthographic unprojection
+        // For orthographic projection, the ray direction is constant (view forward direction)
+        // Only the ray origin varies based on screen position
+
+        // Convert screen to normalized device coordinates (-1 to 1)
+        val ndcX = (2f * screenX / screenWidth) - 1f
+        val ndcY = 1f - (2f * screenY / screenHeight)
+
+        // Manually compute view-space point from NDC for orthographic projection
+        // Orthographic projection: NDC_x = 2*view_x/(right-left), NDC_y = 2*view_y/(top-bottom)
+        // Therefore: view_x = NDC_x * (right-left)/2, view_y = NDC_y * (top-bottom)/2
+        val viewWidth = screenWidth / camera.zoom
+        val viewHeight = screenHeight / camera.zoom
+        val halfWidth = viewWidth / 2f
+        val halfHeight = viewHeight / 2f
+
+        // View-space point (in the camera's coordinate system)
+        val viewX = ndcX * halfWidth
+        val viewY = ndcY * halfHeight
+        val viewZ = 0f  // At the center of the frustum
+
+        // Transform from view space to world space using inverse view matrix
+        val invView = inverseViewMatrix3D
+        val rayOrigin = invView.transformPoint(Vector3(viewX, viewY, viewZ))
+
+        // Ray direction: the camera's forward direction (from eye to target)
+        // In view space, forward is -Z. Transform (0, 0, -1) direction by inverse view.
+        val viewForward = Vector3(0f, 0f, -1f)
+        val rayDir = invView.transformDirection(viewForward).normalize()
+
+        // Intersect with Z=0 plane (game plane)
+        // Ray: P = Origin + t * Direction
+        // Plane: Z = 0
+        // Solve: Origin.z + t * Direction.z = 0
+        // t = -Origin.z / Direction.z
+
+        if (kotlin.math.abs(rayDir.z) < 0.0001f) {
+            // Ray parallel to plane, no intersection
+            Log.w(TAG, "Ray parallel to plane: rayDir.z=${rayDir.z}")
+            return null
+        }
+
+        val t = -rayOrigin.z / rayDir.z
+        if (t < 0) {
+            // Intersection behind camera
+            Log.w(TAG, "Intersection behind camera: t=$t, rayOrigin.z=${rayOrigin.z}, rayDir.z=${rayDir.z}")
+            return null
+        }
+
+        val result = Vector3(
+            rayOrigin.x + t * rayDir.x,
+            rayOrigin.y + t * rayDir.y,
+            0f
+        )
+        Log.d(TAG, "Ray hit: origin=(${rayOrigin.x.toInt()}, ${rayOrigin.y.toInt()}, ${rayOrigin.z.toInt()}) dir=(${rayDir.x}, ${rayDir.y}, ${rayDir.z}) t=$t -> world=(${result.x.toInt()}, ${result.y.toInt()})")
+        return result
+    }
+
+    /**
+     * Render 3D towers using ModelBatch.
+     */
+    private fun render3DTowers(interpolation: Float) {
+        val batch = modelBatch ?: return
+        val shader = modelShader ?: return
+        val cache = modelCache ?: return
+
+        update3DMatrices()
+
+        batch.begin(shader, viewMatrix3D, projectionMatrix3D)
+
+        // Iterate all entities with Transform + Tower + Model components
+        gameWorld.world.forEachWith<TransformComponent, TowerComponent, ModelComponent> { _, transform, tower, model ->
+            if (!model.visible) return@forEachWith
+
+            // Get or load model
+            val activeModel = model.activeModel ?: run {
+                if (model.assetPath.isNotEmpty()) {
+                    try {
+                        val lodModel = cache.getLODModel(model.assetPath)
+                        if (lodModel != null) {
+                            // Initialize on GL thread if not already
+                            if (!lodModel.isInitialized()) {
+                                lodModel.initialize()
+                            }
+                            model.lodModel = lodModel
+                            model.activeModel = lodModel.lods.firstOrNull()
+                        }
+                        model.activeModel
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to load tower model: ${model.assetPath}", e)
+                        null
+                    }
+                } else null
+            }
+
+            activeModel?.let { m ->
+                // Skip if mesh not initialized
+                if (!m.isInitialized()) {
+                    Log.d(TAG, "Tower model not initialized: ${model.assetPath}")
+                    return@forEachWith
+                }
+
+                // Interpolate position for smooth movement
+                val pos = transform.interpolatedPosition(interpolation)
+
+                // Get model's geometric center for proper centering
+                val modelCenter = m.bounds.center
+
+                // After +90° X rotation: (cx, cy, cz) → (cx, -cz, cy)
+                // To center model at world position, subtract the rotated & scaled center
+                var offsetX = modelCenter.x * model.scale
+                var offsetY = -modelCenter.z * model.scale  // Z becomes -Y after rotation
+
+                // Pulse tower has different geometry - apply additional offset
+                if (model.assetPath.contains("tower_pulse")) {
+                    offsetX += model.scale * 0.3f
+                    offsetY -= model.scale * 0.3f
+                }
+
+                val modelMatrix = Matrix4x4.identity()
+                modelMatrix.translate(pos.x - offsetX, pos.y - offsetY, 0f)
+
+                // Convert from Y-up (glTF standard) to Z-up (our world)
+                modelMatrix.rotateX(90f)
+
+                modelMatrix.scale(model.scale, model.scale, model.scale)
+
+                batch.submit(m, modelMatrix, model.color, model.glow)
+            }
+        }
+
+        batch.end()
+    }
+
+    /**
+     * Render 3D enemies using ModelBatch.
+     */
+    private fun render3DEnemies(interpolation: Float) {
+        val batch = modelBatch ?: return
+        val shader = modelShader ?: return
+        val cache = modelCache ?: return
+
+        // Matrices already updated in render3DTowers
+        batch.begin(shader, viewMatrix3D, projectionMatrix3D)
+
+        // Iterate all entities with Transform + Enemy + Model components
+        gameWorld.world.forEachWith<TransformComponent, EnemyComponent, ModelComponent> { _, transform, enemy, model ->
+            if (!model.visible) return@forEachWith
+
+            // Get or load model
+            val activeModel = model.activeModel ?: run {
+                if (model.assetPath.isNotEmpty()) {
+                    try {
+                        val lodModel = cache.getLODModel(model.assetPath)
+                        if (lodModel != null) {
+                            // Initialize on GL thread if not already
+                            if (!lodModel.isInitialized()) {
+                                lodModel.initialize()
+                            }
+                            model.lodModel = lodModel
+                            model.activeModel = lodModel.lods.firstOrNull()
+                        }
+                        model.activeModel
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to load enemy model: ${model.assetPath}", e)
+                        null
+                    }
+                } else null
+            }
+
+            activeModel?.let { m ->
+                // Skip if mesh not initialized
+                if (!m.isInitialized()) return@forEachWith
+
+                val pos = transform.interpolatedPosition(interpolation)
+                val effectiveScale = model.scale * enemy.type.sizeScale
+
+                // Get model's geometric center for proper centering
+                val modelCenter = m.bounds.center
+
+                // After +90° X rotation: (cx, cy, cz) → (cx, -cz, cy)
+                // To center model at world position, subtract the rotated & scaled center
+                val offsetX = modelCenter.x * effectiveScale
+                val offsetY = -modelCenter.z * effectiveScale  // Z becomes -Y after rotation
+
+                val modelMatrix = Matrix4x4.identity()
+                modelMatrix.translate(pos.x - offsetX, pos.y - offsetY, 0f)
+
+                // Convert from Y-up (glTF standard) to Z-up (our world)
+                modelMatrix.rotateX(90f)
+
+                modelMatrix.scale(effectiveScale, effectiveScale, effectiveScale)
+
+                batch.submit(m, modelMatrix, model.color, model.glow)
+            }
+        }
+
+        batch.end()
+    }
+
+    /**
+     * Render all 3D content (called when 3D rendering is enabled).
+     */
+    private fun render3DContent(interpolation: Float) {
+        // Enable depth testing for 3D
+        GLES30.glEnable(GLES30.GL_DEPTH_TEST)
+        GLES30.glDepthFunc(GLES30.GL_LEQUAL)
+        GLES30.glClear(GLES30.GL_DEPTH_BUFFER_BIT)
+
+        // Disable face culling (models may have inconsistent winding)
+        GLES30.glDisable(GLES30.GL_CULL_FACE)
+
+        // Render 3D towers
+        if (RenderConfig.use3DTowers) {
+            render3DTowers(interpolation)
+        }
+
+        // Render 3D enemies
+        if (RenderConfig.use3DEnemies) {
+            render3DEnemies(interpolation)
+        }
+
+        // Disable depth for 2D overlay rendering
+        GLES30.glDisable(GLES30.GL_DEPTH_TEST)
     }
 
     /**

@@ -1,0 +1,351 @@
+{
+  "version": "1.0",
+  "generated": "2025-12-28",
+  "summary": {
+    "total_assets": 63,
+    "total_size_kb": 737.5,
+    "towers": 14,
+    "tower_lods": 28,
+    "enemies": 16,
+    "environment": 5
+  },
+  "towers": {
+    "pulse": {
+      "files": {
+        "lod0": "tower_pulse.glb",
+        "lod1": "tower_pulse_lod1.glb",
+        "lod2": "tower_pulse_lod2.glb"
+      },
+      "triangles": {
+        "tris_lod0": 364,
+        "tris_lod1": 160,
+        "tris_lod2": 44,
+        "color": "NeonCyan"
+      },
+      "color": "NeonCyan"
+    },
+    "sniper": {
+      "files": {
+        "lod0": "tower_sniper.glb",
+        "lod1": "tower_sniper_lod1.glb",
+        "lod2": "tower_sniper_lod2.glb"
+      },
+      "triangles": {
+        "tris_lod0": 224,
+        "tris_lod1": 88,
+        "tris_lod2": 44,
+        "color": "NeonBlue"
+      },
+      "color": "NeonBlue"
+    },
+    "splash": {
+      "files": {
+        "lod0": "tower_splash.glb",
+        "lod1": "tower_splash_lod1.glb",
+        "lod2": "tower_splash_lod2.glb"
+      },
+      "triangles": {
+        "tris_lod0": 240,
+        "tris_lod1": 96,
+        "tris_lod2": 60,
+        "color": "NeonOrange"
+      },
+      "color": "NeonOrange"
+    },
+    "flame": {
+      "files": {
+        "lod0": "tower_flame.glb",
+        "lod1": "tower_flame_lod1.glb",
+        "lod2": "tower_flame_lod2.glb"
+      },
+      "triangles": {
+        "tris_lod0": 140,
+        "tris_lod1": 84,
+        "tris_lod2": 36,
+        "color": "NeonRed"
+      },
+      "color": "NeonRed"
+    },
+    "slow": {
+      "files": {
+        "lod0": "tower_slow.glb",
+        "lod1": "tower_slow_lod1.glb",
+        "lod2": "tower_slow_lod2.glb"
+      },
+      "triangles": {
+        "tris_lod0": 204,
+        "tris_lod1": 104,
+        "tris_lod2": 76,
+        "color": "NeonIce"
+      },
+      "color": "NeonIce"
+    },
+    "tesla": {
+      "files": {
+        "lod0": "tower_tesla.glb",
+        "lod1": "tower_tesla_lod1.glb",
+        "lod2": "tower_tesla_lod2.glb"
+      },
+      "triangles": {
+        "tris_lod0": 402,
+        "tris_lod1": 104,
+        "tris_lod2": 76,
+        "color": "NeonPurple"
+      },
+      "color": "NeonPurple"
+    },
+    "gravity": {
+      "files": {
+        "lod0": "tower_gravity.glb",
+        "lod1": "tower_gravity_lod1.glb",
+        "lod2": "tower_gravity_lod2.glb"
+      },
+      "triangles": {
+        "tris_lod0": 396,
+        "tris_lod1": 96,
+        "tris_lod2": 60,
+        "color": "NeonDarkPurple"
+      },
+      "color": "NeonDarkPurple"
+    },
+    "temporal": {
+      "files": {
+        "lod0": "tower_temporal.glb",
+        "lod1": "tower_temporal_lod1.glb",
+        "lod2": "tower_temporal_lod2.glb"
+      },
+      "triangles": {
+        "tris_lod0": 208,
+        "tris_lod1": 104,
+        "tris_lod2": 76,
+        "color": "NeonWhite"
+      },
+      "color": "NeonWhite"
+    },
+    "laser": {
+      "files": {
+        "lod0": "tower_laser.glb",
+        "lod1": "tower_laser_lod1.glb",
+        "lod2": "tower_laser_lod2.glb"
+      },
+      "triangles": {
+        "tris_lod0": 264,
+        "tris_lod1": 88,
+        "tris_lod2": 44,
+        "color": "NeonGreen"
+      },
+      "color": "NeonGreen"
+    },
+    "poison": {
+      "files": {
+        "lod0": "tower_poison.glb",
+        "lod1": "tower_poison_lod1.glb",
+        "lod2": "tower_poison_lod2.glb"
+      },
+      "triangles": {
+        "tris_lod0": 264,
+        "tris_lod1": 96,
+        "tris_lod2": 60,
+        "color": "NeonPoisonGreen"
+      },
+      "color": "NeonPoisonGreen"
+    },
+    "missile": {
+      "files": {
+        "lod0": "tower_missile.glb",
+        "lod1": "tower_missile_lod1.glb",
+        "lod2": "tower_missile_lod2.glb"
+      },
+      "triangles": {
+        "tris_lod0": 200,
+        "tris_lod1": 84,
+        "tris_lod2": 36,
+        "color": "NeonMissileRed"
+      },
+      "color": "NeonMissileRed"
+    },
+    "buff": {
+      "files": {
+        "lod0": "tower_buff.glb",
+        "lod1": "tower_buff_lod1.glb",
+        "lod2": "tower_buff_lod2.glb"
+      },
+      "triangles": {
+        "tris_lod0": 340,
+        "tris_lod1": 88,
+        "tris_lod2": 44,
+        "color": "NeonYellow"
+      },
+      "color": "NeonYellow"
+    },
+    "debuff": {
+      "files": {
+        "lod0": "tower_debuff.glb",
+        "lod1": "tower_debuff_lod1.glb",
+        "lod2": "tower_debuff_lod2.glb"
+      },
+      "triangles": {
+        "tris_lod0": 248,
+        "tris_lod1": 84,
+        "tris_lod2": 36,
+        "color": "NeonPink"
+      },
+      "color": "NeonPink"
+    },
+    "chain": {
+      "files": {
+        "lod0": "tower_chain.glb",
+        "lod1": "tower_chain_lod1.glb",
+        "lod2": "tower_chain_lod2.glb"
+      },
+      "triangles": {
+        "tris_lod0": 364,
+        "tris_lod1": 96,
+        "tris_lod2": 60,
+        "color": "NeonChainPurple"
+      },
+      "color": "NeonChainPurple"
+    }
+  },
+  "enemies": {
+    "basic": {
+      "file": "enemy_basic.glb",
+      "triangles": 156,
+      "scale": 1.0,
+      "display_name": "Drone",
+      "size_bytes": 14352
+    },
+    "fast": {
+      "file": "enemy_fast.glb",
+      "triangles": 20,
+      "scale": 0.7,
+      "display_name": "Runner",
+      "size_bytes": 3292
+    },
+    "tank": {
+      "file": "enemy_tank.glb",
+      "triangles": 140,
+      "scale": 1.5,
+      "display_name": "Heavy",
+      "size_bytes": 12300
+    },
+    "flying": {
+      "file": "enemy_flying.glb",
+      "triangles": 16,
+      "scale": 0.8,
+      "display_name": "Flyer",
+      "size_bytes": 2820
+    },
+    "healer": {
+      "file": "enemy_healer.glb",
+      "triangles": 104,
+      "scale": 1.0,
+      "display_name": "Medic",
+      "size_bytes": 9152
+    },
+    "shielded": {
+      "file": "enemy_shielded.glb",
+      "triangles": 172,
+      "scale": 1.2,
+      "display_name": "Guardian",
+      "size_bytes": 14656
+    },
+    "spawner": {
+      "file": "enemy_spawner.glb",
+      "triangles": 220,
+      "scale": 1.3,
+      "display_name": "Hive",
+      "size_bytes": 17384
+    },
+    "phasing": {
+      "file": "enemy_phasing.glb",
+      "triangles": 48,
+      "scale": 0.9,
+      "display_name": "Phantom",
+      "size_bytes": 5036
+    },
+    "splitting": {
+      "file": "enemy_splitting.glb",
+      "triangles": 32,
+      "scale": 1.0,
+      "display_name": "Splitter",
+      "size_bytes": 4800
+    },
+    "regenerating": {
+      "file": "enemy_regenerating.glb",
+      "triangles": 206,
+      "scale": 1.0,
+      "display_name": "Regen",
+      "size_bytes": 17388
+    },
+    "stealth": {
+      "file": "enemy_stealth.glb",
+      "triangles": 20,
+      "scale": 0.8,
+      "display_name": "Shadow",
+      "size_bytes": 3220
+    },
+    "fire": {
+      "file": "enemy_fire.glb",
+      "triangles": 82,
+      "scale": 1.1,
+      "display_name": "Inferno",
+      "size_bytes": 8068
+    },
+    "ice": {
+      "file": "enemy_ice.glb",
+      "triangles": 48,
+      "scale": 1.1,
+      "display_name": "Frost",
+      "size_bytes": 5736
+    },
+    "lightning": {
+      "file": "enemy_lightning.glb",
+      "triangles": 156,
+      "scale": 1.1,
+      "display_name": "Storm",
+      "size_bytes": 13308
+    },
+    "miniboss": {
+      "file": "enemy_miniboss.glb",
+      "triangles": 266,
+      "scale": 1.8,
+      "display_name": "Elite",
+      "size_bytes": 22152
+    },
+    "boss": {
+      "file": "enemy_boss.glb",
+      "triangles": 484,
+      "scale": 2.5,
+      "display_name": "Overlord",
+      "size_bytes": 38144
+    }
+  },
+  "environment": {
+    "buildable": {
+      "file": "tile_buildable.glb",
+      "triangles": 108,
+      "size_bytes": 9828
+    },
+    "path": {
+      "file": "tile_path.glb",
+      "triangles": 16,
+      "size_bytes": 2488
+    },
+    "spawn": {
+      "file": "tile_spawn.glb",
+      "triangles": 92,
+      "size_bytes": 8368
+    },
+    "exit": {
+      "file": "tile_exit.glb",
+      "triangles": 100,
+      "size_bytes": 8416
+    },
+    "blocked": {
+      "file": "tile_blocked.glb",
+      "triangles": 12,
+      "size_bytes": 2036
+    }
+  }
+}

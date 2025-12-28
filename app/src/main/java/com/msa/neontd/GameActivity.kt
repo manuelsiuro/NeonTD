@@ -32,6 +32,7 @@ import com.msa.neontd.game.heroes.HeroModifiers
 import com.msa.neontd.game.heroes.HeroRepository
 import com.msa.neontd.game.prestige.PrestigeModifiers
 import com.msa.neontd.game.prestige.PrestigeRepository
+import com.msa.neontd.config.RenderConfig
 import kotlinx.serialization.json.Json
 
 class GameActivity : ComponentActivity() {
@@ -189,6 +190,11 @@ class GameActivity : ComponentActivity() {
     private fun loadGraphicsSettings() {
         val prefs = getSharedPreferences("neontd_graphics", MODE_PRIVATE)
         GLRenderer.shadersEnabled = prefs.getBoolean("shaders_enabled", true)
+
+        // Enable 3D rendering (Phase 2: isometric camera with 3D towers and enemies)
+        RenderConfig.enablePhase(2)
+        RenderConfig.logRenderStats = true  // Enable logging for debugging
+        Log.d(TAG, "3D rendering enabled: towers=${RenderConfig.use3DTowers}, enemies=${RenderConfig.use3DEnemies}, camera=${RenderConfig.use3DCamera}")
     }
 
     /**

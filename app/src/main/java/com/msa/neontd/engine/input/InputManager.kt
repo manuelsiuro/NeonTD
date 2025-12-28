@@ -35,6 +35,13 @@ class InputManager(private val camera: Camera) {
     var gridSnapSize: Float = 64f
     var enableGridSnap: Boolean = true
 
+    /**
+     * Custom screen-to-world converter for isometric mode.
+     * Set this to override the default camera conversion.
+     * Returns (worldX, worldY) for the given screen coordinates.
+     */
+    var customScreenToWorld: ((screenX: Float, screenY: Float) -> Pair<Float, Float>)? = null
+
     fun addTouchListener(listener: (TouchEvent) -> Boolean) {
         touchListeners.add(listener)
     }
@@ -49,8 +56,9 @@ class InputManager(private val camera: Camera) {
         val screenX = event.getX(pointerIndex)
         val screenY = event.getY(pointerIndex)
 
-        // Convert to world coordinates
-        val (worldX, worldY) = camera.screenToWorld(screenX, screenY)
+        // Convert to world coordinates (use custom converter if set, e.g., for isometric mode)
+        val (worldX, worldY) = customScreenToWorld?.invoke(screenX, screenY)
+            ?: camera.screenToWorld(screenX, screenY)
 
         val touchType = when (event.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> TouchType.DOWN
@@ -146,7 +154,8 @@ class InputManager(private val camera: Camera) {
     }
 
     fun screenToGrid(screenX: Float, screenY: Float): Pair<Int, Int> {
-        val (worldX, worldY) = camera.screenToWorld(screenX, screenY)
+        val (worldX, worldY) = customScreenToWorld?.invoke(screenX, screenY)
+            ?: camera.screenToWorld(screenX, screenY)
         return worldToGrid(worldX, worldY)
     }
 
