@@ -23,6 +23,8 @@ import com.msa.neontd.game.components.ModelComponent
 import com.msa.neontd.game.components.TransformComponent
 import com.msa.neontd.game.entities.TowerComponent
 import com.msa.neontd.game.entities.EnemyComponent
+import com.msa.neontd.game.entities.ProjectileComponent
+import com.msa.neontd.engine.graphics3d.ProjectileMeshFactory
 import com.msa.neontd.util.Matrix4x4
 import com.msa.neontd.util.Quaternion
 import com.msa.neontd.util.Vector3
@@ -1039,6 +1041,9 @@ class GLRenderer(
         // Initialize model cache for loading/caching GLB files
         modelCache = ModelCache(GLTFLoader(context))
 
+        // Initialize projectile meshes
+        ProjectileMeshFactory.initialize()
+
         // Preload common models
         preload3DModels()
 
@@ -1400,6 +1405,50 @@ class GLRenderer(
     }
 
     /**
+     * Render 3D projectiles using procedural meshes.
+     */
+    private fun render3DProjectiles(interpolation: Float) {
+        val batch = modelBatch ?: return
+        val shader = modelShader ?: return
+
+        // Note: matrices already updated by render3DTowers
+        batch.begin(shader, viewMatrix3D, projectionMatrix3D)
+
+        // Iterate all entities with Transform + Projectile + Model components
+        gameWorld.world.forEachWith<TransformComponent, ProjectileComponent, ModelComponent> { _, transform, projectile, model ->
+            if (!model.visible) return@forEachWith
+
+            // Get the appropriate mesh for this projectile type
+            val mesh = ProjectileMeshFactory.getMesh(projectile.projectileType)
+
+            // Ensure mesh is initialized
+            if (!mesh.isInitialized()) {
+                mesh.initialize()
+            }
+
+            // Interpolate position for smooth movement
+            val pos = transform.interpolatedPosition(interpolation)
+
+            // Calculate rotation to face velocity direction
+            val dir = projectile.direction
+            val yaw = kotlin.math.atan2(dir.y, dir.x) * 180f / kotlin.math.PI.toFloat()
+
+            val modelMatrix = Matrix4x4.identity()
+            modelMatrix.translate(pos.x, pos.y, 5f)  // Slight Z offset to be above ground
+
+            // Rotate to face direction of travel
+            modelMatrix.rotateX(90f)
+            modelMatrix.rotateZ(yaw - 90f)  // Adjust so forward faces velocity
+
+            modelMatrix.scale(model.scale, model.scale, model.scale)
+
+            batch.submit(mesh, modelMatrix, model.color, model.glow)
+        }
+
+        batch.end()
+    }
+
+    /**
      * Render all 3D content (called when 3D rendering is enabled).
      */
     private fun render3DContent(interpolation: Float) {
@@ -1419,6 +1468,11 @@ class GLRenderer(
         // Render 3D enemies
         if (RenderConfig.use3DEnemies) {
             render3DEnemies(interpolation)
+        }
+
+        // Render 3D projectiles
+        if (RenderConfig.use3DProjectiles) {
+            render3DProjectiles(interpolation)
         }
 
         // Disable depth for 2D overlay rendering

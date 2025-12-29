@@ -1,8 +1,10 @@
 package com.msa.neontd.game.entities
 
+import com.msa.neontd.config.RenderConfig
 import com.msa.neontd.engine.ecs.Entity
 import com.msa.neontd.engine.ecs.World
 import com.msa.neontd.game.components.LifetimeComponent
+import com.msa.neontd.game.components.ModelComponent
 import com.msa.neontd.game.components.SpriteComponent
 import com.msa.neontd.game.components.TransformComponent
 import com.msa.neontd.game.components.VelocityComponent
@@ -10,6 +12,33 @@ import com.msa.neontd.util.Color
 import com.msa.neontd.util.Vector2
 
 class ProjectileFactory(private val world: World) {
+
+    /**
+     * Determine the projectile visual type based on tower type.
+     */
+    private fun getProjectileType(towerType: TowerType, isHoming: Boolean): ProjectileType {
+        return when {
+            isHoming -> ProjectileType.MISSILE
+            towerType == TowerType.TESLA || towerType == TowerType.CHAIN -> ProjectileType.CHAIN_LIGHTNING
+            towerType == TowerType.LASER -> ProjectileType.BEAM
+            towerType == TowerType.SPLASH -> ProjectileType.MISSILE
+            towerType == TowerType.MISSILE -> ProjectileType.MISSILE
+            else -> ProjectileType.BULLET
+        }
+    }
+
+    /**
+     * Get scale for projectile based on type.
+     */
+    private fun getProjectileScale(type: ProjectileType): Float {
+        return when (type) {
+            ProjectileType.BULLET -> 6f
+            ProjectileType.MISSILE -> 8f
+            ProjectileType.BEAM -> 10f
+            ProjectileType.CHAIN_LIGHTNING -> 5f
+            ProjectileType.EXPLOSION -> 15f
+        }
+    }
 
     fun createProjectile(
         position: Vector2,
@@ -53,14 +82,29 @@ class ProjectileFactory(private val world: World) {
             DamageType.TRUE -> Color.NEON_MAGENTA.copy()
         }
 
-        // Sprite
-        world.addComponent(entity, SpriteComponent(
-            width = 8f,
-            height = 8f,
-            color = color,
-            glow = 0.8f,
-            layer = 15
-        ))
+        // Determine projectile type for 3D rendering
+        val projectileType = getProjectileType(towerType, target != null)
+
+        // Add 3D model component if 3D projectiles are enabled
+        if (RenderConfig.use3DProjectiles) {
+            world.addComponent(entity, ModelComponent(
+                color = color,
+                glow = 0.8f,
+                visible = true,
+                scale = getProjectileScale(projectileType)
+            ))
+        }
+
+        // Sprite (for 2D fallback or when 3D is disabled)
+        if (!RenderConfig.use3DProjectiles) {
+            world.addComponent(entity, SpriteComponent(
+                width = 8f,
+                height = 8f,
+                color = color,
+                glow = 0.8f,
+                layer = 15
+            ))
+        }
 
         // Projectile data
         world.addComponent(entity, ProjectileComponent(
@@ -79,7 +123,8 @@ class ProjectileFactory(private val world: World) {
             slowDuration = slowDuration,
             dotDamage = dotDamage,
             dotDuration = dotDuration,
-            trailColor = color.copy()
+            trailColor = color.copy(),
+            projectileType = projectileType
         ))
 
         // Lifetime (auto-destroy after max distance)
@@ -119,13 +164,27 @@ class ProjectileFactory(private val world: World) {
             maxSpeed = 800f
         ))
 
-        world.addComponent(entity, SpriteComponent(
-            width = 6f,
-            height = 6f,
-            color = Color(0.8f, 0.8f, 1f, 1f),
-            glow = 1f,
-            layer = 15
-        ))
+        val lightningColor = Color(0.8f, 0.8f, 1f, 1f)
+
+        // Add 3D model component if 3D projectiles are enabled
+        if (RenderConfig.use3DProjectiles) {
+            world.addComponent(entity, ModelComponent(
+                color = lightningColor,
+                glow = 1f,
+                visible = true,
+                scale = getProjectileScale(ProjectileType.CHAIN_LIGHTNING)
+            ))
+        }
+
+        if (!RenderConfig.use3DProjectiles) {
+            world.addComponent(entity, SpriteComponent(
+                width = 6f,
+                height = 6f,
+                color = lightningColor,
+                glow = 1f,
+                layer = 15
+            ))
+        }
 
         val chainedSet = alreadyChained.toMutableSet()
         chainedSet.add(targetEntity.id)
@@ -140,7 +199,8 @@ class ProjectileFactory(private val world: World) {
             direction = direction,
             chainCount = chainCount - 1,
             chainRange = chainRange,
-            chainedEntities = chainedSet
+            chainedEntities = chainedSet,
+            projectileType = ProjectileType.CHAIN_LIGHTNING
         ))
 
         world.addComponent(entity, LifetimeComponent(remainingTime = 2f))
@@ -161,16 +221,30 @@ class ProjectileFactory(private val world: World) {
             position = position.copy()
         ))
 
-        world.addComponent(entity, SpriteComponent(
-            width = radius * 2,
-            height = radius * 2,
-            color = when (damageType) {
-                DamageType.FIRE -> Color(1f, 0.5f, 0f, 0.6f)
-                else -> Color(1f, 1f, 1f, 0.6f)
-            },
-            glow = 1f,
-            layer = 20
-        ))
+        val explosionColor = when (damageType) {
+            DamageType.FIRE -> Color(1f, 0.5f, 0f, 0.6f)
+            else -> Color(1f, 1f, 1f, 0.6f)
+        }
+
+        // Add 3D model component if 3D projectiles are enabled
+        if (RenderConfig.use3DProjectiles) {
+            world.addComponent(entity, ModelComponent(
+                color = explosionColor,
+                glow = 1f,
+                visible = true,
+                scale = radius * 2  // Scale sphere to match explosion radius
+            ))
+        }
+
+        if (!RenderConfig.use3DProjectiles) {
+            world.addComponent(entity, SpriteComponent(
+                width = radius * 2,
+                height = radius * 2,
+                color = explosionColor,
+                glow = 1f,
+                layer = 20
+            ))
+        }
 
         // Explosion marker for damage processing
         world.addComponent(entity, ProjectileComponent(
@@ -180,7 +254,8 @@ class ProjectileFactory(private val world: World) {
             damageType = damageType,
             speed = 0f,
             direction = Vector2.ZERO,
-            splashRadius = radius
+            splashRadius = radius,
+            projectileType = ProjectileType.EXPLOSION
         ))
 
         // Short lifetime for visual effect

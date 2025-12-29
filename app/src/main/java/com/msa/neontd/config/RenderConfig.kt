@@ -34,7 +34,7 @@ object RenderConfig {
     /**
      * Render projectiles as 3D models.
      */
-    var use3DProjectiles: Boolean = false
+    var use3DProjectiles: Boolean = true  // Phase 3: Enabled
 
     /**
      * Use 3D particle effects (billboarded or mesh particles).

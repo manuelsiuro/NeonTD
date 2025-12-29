@@ -35,7 +35,8 @@ data class ProjectileComponent(
     var dotDuration: Float = 0f,
 
     // Visual
-    var trailColor: Color = Color.WHITE
+    var trailColor: Color = Color.WHITE,
+    var projectileType: ProjectileType = ProjectileType.BULLET
 ) : Component {
     val isHoming: Boolean get() = target != null
     val hasSplash: Boolean get() = splashRadius > 0f
