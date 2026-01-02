@@ -419,6 +419,13 @@ class GLRenderer(
         camera.x = mapCenterX
         camera.y = mapCenterY
 
+        // Initialize camera bounds for pan/zoom constraints
+        camera.initializeBounds(
+            mapWidth = gameWorld.gridMap.worldWidth,
+            mapHeight = gameWorld.gridMap.worldHeight,
+            padding = 100f  // Allow some panning beyond map edges
+        )
+
         // Recalculate zoom with safe area consideration
         recalculateCameraZoom()
 
@@ -614,6 +621,7 @@ class GLRenderer(
 
         // Render upgrade panel on top if open (corner card design)
         if (gameWorld.isUpgradePanelOpen) {
+            Log.d(TAG, "[RENDER] Rendering upgrade panel: gameWorld.isOpen=${gameWorld.isUpgradePanelOpen}, gameHUD.isOpen=${gameHUD.isUpgradePanelOpen}")
             gameHUD.renderCornerUpgradePanel(spriteBatch, whitePixelTexture)
         }
 
@@ -628,131 +636,146 @@ class GLRenderer(
     fun onTouchEvent(event: MotionEvent): Boolean {
         if (!isInitialized) return false
 
+        val action = event.actionMasked
+
         // Handle tutorial touch events first (highest priority when tutorial is active)
         if (tutorialManager?.isActive == true) {
             val handled = handleTutorialTouch(event)
             if (handled) return true
         }
 
-        when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                // Check for options menu FIRST (highest priority when playing)
-                if (!GameStateManager.isGameEnded() && gameHUD.isOptionsMenuTouched(event.x, event.y)) {
-                    val action = gameHUD.handleOptionsTouch(event.x, event.y)
-                    when (action) {
-                        OptionsAction.OPEN_ENCYCLOPEDIA -> {
-                            gameHUD.isEncyclopediaOpen = true
-                            Log.d(TAG, "Options menu: Opening encyclopedia")
-                        }
-                        OptionsAction.QUIT_TO_MENU -> {
-                            Log.d(TAG, "Options menu: Quitting to menu")
-                            onQuitToMenu?.invoke()
-                        }
-                        null -> { /* Menu toggled or closed */ }
-                    }
-                    return true
-                }
-
-                // Check for upgrade panel SECOND (when open)
-                if (!GameStateManager.isGameEnded() && gameHUD.isUpgradePanelTouched(event.x, event.y)) {
-                    val action = gameHUD.handleUpgradePanelTouch(event.x, event.y)
-                    when (action) {
-                        UpgradeAction.UPGRADE_DAMAGE -> {
-                            val success = gameWorld.upgradeSelectedTower(UpgradeableStat.DAMAGE)
-                            Log.d(TAG, "Upgrade DAMAGE: ${if (success) "success" else "failed"}")
-                        }
-                        UpgradeAction.UPGRADE_RANGE -> {
-                            val success = gameWorld.upgradeSelectedTower(UpgradeableStat.RANGE)
-                            Log.d(TAG, "Upgrade RANGE: ${if (success) "success" else "failed"}")
-                        }
-                        UpgradeAction.UPGRADE_FIRE_RATE -> {
-                            val success = gameWorld.upgradeSelectedTower(UpgradeableStat.FIRE_RATE)
-                            Log.d(TAG, "Upgrade FIRE_RATE: ${if (success) "success" else "failed"}")
-                        }
-                        UpgradeAction.SELL -> {
-                            val sellValue = gameWorld.sellSelectedTower()
-                            Log.d(TAG, "Sold tower for $sellValue gold")
-                        }
-                        UpgradeAction.ACTIVATE_ABILITY -> {
-                            val success = gameWorld.activateSelectedTowerAbility()
-                            Log.d(TAG, "Activate ability: ${if (success) "success" else "failed"}")
-                        }
-                        UpgradeAction.CYCLE_TARGETING_MODE -> {
-                            gameWorld.cycleSelectedTowerTargetingMode()
-                            Log.d(TAG, "Cycled targeting mode")
-                        }
-                        UpgradeAction.CLOSE_PANEL -> {
-                            gameWorld.closeUpgradePanel()
-                            Log.d(TAG, "Upgrade panel closed")
-                        }
-                        null -> { /* Touch inside panel but not on a button */ }
-                    }
-                    return true
-                }
-
-                // Check for speed button (only when playing, not paused)
-                if (!GameStateManager.isGameEnded() && !GameStateManager.isPaused() &&
-                    gameHUD.handleSpeedButtonTouch(event.x, event.y)) {
-                    val newSpeed = gameWorld.cycleGameSpeed()
-                    gameHUD.gameSpeed = newSpeed
-                    Log.d(TAG, "Game speed changed to ${newSpeed}x")
-                    return true
-                }
-
-                // Check for skip wave button (only when can skip)
-                if (!GameStateManager.isGameEnded() && !GameStateManager.isPaused() &&
-                    gameHUD.handleSkipWaveButtonTouch(event.x, event.y)) {
-                    // Skip wave is handled via callback
-                    return true
-                }
-
-                // Check for hero ability button (only when playing, not paused)
-                if (!GameStateManager.isGameEnded() && !GameStateManager.isPaused() &&
-                    gameHUD.handleHeroAbilityTouch(event.x, event.y)) {
-                    // Ability activation is handled by callback set on HUD
-                    Log.d(TAG, "Hero ability activated via HUD button")
-                    return true
-                }
-
-                // Check for restart button (during game over or victory)
-                if (GameStateManager.isGameEnded() && gameHUD.handleRestartTouch(event.x, event.y)) {
-                    Log.d(TAG, "Restart button pressed - resetting game")
-                    resetGame()
-                    return true
-                }
-
-                // Check HUD for tower selection (only when game is active)
-                if (!GameStateManager.isGameEnded()) {
-                    val selectedTower = gameHUD.handleTouch(event.x, event.y)
-                    if (selectedTower != null) {
-                        gameWorld.selectTowerType(selectedTower)
-                        Log.d(TAG, "Selected tower: ${selectedTower.displayName}")
-                        return true
-                    }
-                }
-            }
-
-            MotionEvent.ACTION_MOVE -> {
-                // Forward move events to HUD for long-press tooltip tracking
-                if (!GameStateManager.isGameEnded()) {
-                    gameHUD.handleTouchMove(event.x, event.y)
-                }
-            }
-
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                // Forward up/cancel events to HUD to dismiss tooltip
-                if (!GameStateManager.isGameEnded()) {
-                    gameHUD.handleTouchUp(event.x, event.y)
-                }
-            }
+        // For multi-touch gestures (pinch zoom), let InputManager handle everything
+        if (event.pointerCount >= 2) {
+            return inputManager.onTouchEvent(event) || true
         }
 
-        // Don't pass touch events during game over or pause
-        if (GameStateManager.isGameEnded() || GameStateManager.isPaused()) {
-            return false
+        // For single touch ACTION_DOWN, check HUD elements FIRST before InputManager
+        // This prevents InputManager from dispatching to GameWorld and closing panels
+        if (action == MotionEvent.ACTION_DOWN) {
+            // Check for options menu FIRST (highest priority when playing)
+            if (!GameStateManager.isGameEnded() && gameHUD.isOptionsMenuTouched(event.x, event.y)) {
+                val menuAction = gameHUD.handleOptionsTouch(event.x, event.y)
+                when (menuAction) {
+                    OptionsAction.OPEN_ENCYCLOPEDIA -> {
+                        gameHUD.isEncyclopediaOpen = true
+                        Log.d(TAG, "Options menu: Opening encyclopedia")
+                    }
+                    OptionsAction.QUIT_TO_MENU -> {
+                        Log.d(TAG, "Options menu: Quitting to menu")
+                        onQuitToMenu?.invoke()
+                    }
+                    null -> { /* Menu toggled or closed */ }
+                }
+                return true
+            }
+
+            // Check for upgrade panel SECOND (when open) - BEFORE InputManager!
+            if (!GameStateManager.isGameEnded() && gameHUD.isUpgradePanelTouched(event.x, event.y)) {
+                val upgradeAction = gameHUD.handleUpgradePanelTouch(event.x, event.y)
+                when (upgradeAction) {
+                    UpgradeAction.UPGRADE_DAMAGE -> {
+                        val success = gameWorld.upgradeSelectedTower(UpgradeableStat.DAMAGE)
+                        Log.d(TAG, "Upgrade DAMAGE: ${if (success) "success" else "failed"}")
+                    }
+                    UpgradeAction.UPGRADE_RANGE -> {
+                        val success = gameWorld.upgradeSelectedTower(UpgradeableStat.RANGE)
+                        Log.d(TAG, "Upgrade RANGE: ${if (success) "success" else "failed"}")
+                    }
+                    UpgradeAction.UPGRADE_FIRE_RATE -> {
+                        val success = gameWorld.upgradeSelectedTower(UpgradeableStat.FIRE_RATE)
+                        Log.d(TAG, "Upgrade FIRE_RATE: ${if (success) "success" else "failed"}")
+                    }
+                    UpgradeAction.SELL -> {
+                        val sellValue = gameWorld.sellSelectedTower()
+                        Log.d(TAG, "Sold tower for $sellValue gold")
+                    }
+                    UpgradeAction.ACTIVATE_ABILITY -> {
+                        val success = gameWorld.activateSelectedTowerAbility()
+                        Log.d(TAG, "Activate ability: ${if (success) "success" else "failed"}")
+                    }
+                    UpgradeAction.CYCLE_TARGETING_MODE -> {
+                        gameWorld.cycleSelectedTowerTargetingMode()
+                        Log.d(TAG, "Cycled targeting mode")
+                    }
+                    UpgradeAction.CLOSE_PANEL -> {
+                        gameWorld.closeUpgradePanel()
+                        Log.d(TAG, "Upgrade panel closed")
+                    }
+                    null -> { /* Touch inside panel but not on a button */ }
+                }
+                return true
+            }
+
+            // Check for speed button (only when playing, not paused)
+            if (!GameStateManager.isGameEnded() && !GameStateManager.isPaused() &&
+                gameHUD.handleSpeedButtonTouch(event.x, event.y)) {
+                val newSpeed = gameWorld.cycleGameSpeed()
+                gameHUD.gameSpeed = newSpeed
+                Log.d(TAG, "Game speed changed to ${newSpeed}x")
+                return true
+            }
+
+            // Check for skip wave button (only when can skip)
+            if (!GameStateManager.isGameEnded() && !GameStateManager.isPaused() &&
+                gameHUD.handleSkipWaveButtonTouch(event.x, event.y)) {
+                return true
+            }
+
+            // Check for hero ability button (only when playing, not paused)
+            if (!GameStateManager.isGameEnded() && !GameStateManager.isPaused() &&
+                gameHUD.handleHeroAbilityTouch(event.x, event.y)) {
+                Log.d(TAG, "Hero ability activated via HUD button")
+                return true
+            }
+
+            // Check for restart button (during game over or victory)
+            if (GameStateManager.isGameEnded() && gameHUD.handleRestartTouch(event.x, event.y)) {
+                Log.d(TAG, "Restart button pressed - resetting game")
+                resetGame()
+                return true
+            }
+
+            // Check HUD for tower selection (only when game is active)
+            if (!GameStateManager.isGameEnded()) {
+                val selectedTower = gameHUD.handleTouch(event.x, event.y)
+                if (selectedTower != null) {
+                    gameWorld.selectTowerType(selectedTower)
+                    Log.d(TAG, "Selected tower: ${selectedTower.displayName}")
+                    return true
+                }
+            }
+
+            // HUD didn't consume the touch - NOW let InputManager handle it for game world interaction
+            // This is called LAST so it doesn't interfere with HUD elements
+            inputManager.onTouchEvent(event)
+            return true  // Return true to maintain event stream for potential pan gestures
         }
 
-        return inputManager.onTouchEvent(event)
+        // For MOVE events, let InputManager handle pan gestures
+        if (action == MotionEvent.ACTION_MOVE) {
+            inputManager.onTouchEvent(event)
+            // Also forward to HUD for long-press tooltip tracking
+            if (!GameStateManager.isGameEnded()) {
+                gameHUD.handleTouchMove(event.x, event.y)
+            }
+            return true
+        }
+
+        // For UP/CANCEL events
+        if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+            inputManager.onTouchEvent(event)
+            if (!GameStateManager.isGameEnded()) {
+                gameHUD.handleTouchUp(event.x, event.y)
+            }
+            return true
+        }
+
+        // Handle other pointer events for multi-touch
+        if (action == MotionEvent.ACTION_POINTER_DOWN || action == MotionEvent.ACTION_POINTER_UP) {
+            return inputManager.onTouchEvent(event)
+        }
+
+        return false
     }
 
     fun startWave() {
@@ -775,6 +798,7 @@ class GLRenderer(
         if (isInitialized) {
             gameWorld.reset()
             gameHUD.reset()
+            camera.resetPan()  // Reset camera to centered position
             GameStateManager.resetToPlaying()
         }
     }
@@ -1141,9 +1165,9 @@ class GLRenderer(
             -5000f, 5000f
         )
 
-        // Camera target: center of current view (follows 2D camera)
-        val targetX = camera.x
-        val targetY = camera.y
+        // Camera target: center of current view (follows 2D camera INCLUDING pan offset)
+        val targetX = camera.x + camera.panOffsetX
+        val targetY = camera.y + camera.panOffsetY
         val targetZ = 0f
 
         // Calculate camera position for isometric view

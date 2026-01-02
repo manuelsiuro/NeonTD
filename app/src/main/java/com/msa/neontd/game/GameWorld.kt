@@ -340,6 +340,13 @@ class GameWorld(
 
         when (event.type) {
             TouchType.DOWN -> {
+                // Check if touch is within the game board bounds
+                if (!gridMap.isWorldPositionOnBoard(event.worldX, event.worldY)) {
+                    Log.d(TAG, "Touch outside board at world(${event.worldX.toInt()}, ${event.worldY.toInt()})")
+                    clearTowerSelection()
+                    return false
+                }
+
                 // Check for tower placement using gridMap's conversion
                 val gridPos = gridMap.worldToGrid(event.worldX, event.worldY)
                 val gridX = gridPos.x

@@ -105,6 +105,19 @@ class GridMap(
 
     fun worldToGrid(worldPos: Vector2): GridPosition = worldToGrid(worldPos.x, worldPos.y)
 
+    /**
+     * Check if a world position is within the game board bounds.
+     * Returns false for clicks outside the grid.
+     */
+    fun isWorldPositionOnBoard(worldX: Float, worldY: Float): Boolean {
+        val gridX = (worldX / cellSize).toInt()
+        val gridY = (worldY / cellSize).toInt()
+        return gridX in 0 until width && gridY in 0 until height
+    }
+
+    fun isWorldPositionOnBoard(worldPos: Vector2): Boolean =
+        isWorldPositionOnBoard(worldPos.x, worldPos.y)
+
     // Convert grid coordinates to world coordinates (center of cell)
     fun gridToWorld(gridX: Int, gridY: Int): Vector2 {
         return Vector2(

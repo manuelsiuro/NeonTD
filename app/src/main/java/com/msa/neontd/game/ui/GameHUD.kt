@@ -104,7 +104,7 @@ class GameHUD(
     var isUpgradePanelOpen: Boolean = false
     private var upgradePanelData: com.msa.neontd.game.entities.TowerUpgradeData? = null
     private var upgradePanelWorldPos: com.msa.neontd.util.Vector2? = null
-    private var upgradePanelAreas: UpgradePanelAreas? = null
+    @Volatile private var upgradePanelAreas: UpgradePanelAreas? = null
     private var upgradePanelAnimProgress: Float = 0f
 
     // Tower ability state
@@ -2503,10 +2503,27 @@ class GameHUD(
      * @return The action triggered, or null if touch was outside panel
      */
     fun handleUpgradePanelTouch(screenX: Float, screenY: Float): UpgradeAction? {
-        if (!isUpgradePanelOpen) return null
+        if (!isUpgradePanelOpen) {
+            android.util.Log.e("GameHUD", "[TOUCH] Panel not open!")
+            return null
+        }
 
-        val areas = upgradePanelAreas ?: return null
+        val areas = upgradePanelAreas
+        if (areas == null) {
+            android.util.Log.d("GameHUD", "[TOUCH] upgradePanelAreas not ready yet, consuming touch")
+            return null  // Consume touch but don't close panel - areas will be ready soon
+        }
         val touchY = screenHeight - screenY
+
+        android.util.Log.d("GameHUD", "[TOUCH] === UPGRADE PANEL TOUCH ===")
+        android.util.Log.d("GameHUD", "[TOUCH] screenHeight=$screenHeight")
+        android.util.Log.d("GameHUD", "[TOUCH] Input: screenX=$screenX, screenY=$screenY")
+        android.util.Log.d("GameHUD", "[TOUCH] Converted: touchX=$screenX, touchY=$touchY")
+        android.util.Log.d("GameHUD", "[TOUCH] panelBounds: x=${areas.panelBounds.x}, y=${areas.panelBounds.y}, w=${areas.panelBounds.width}, h=${areas.panelBounds.height}")
+        android.util.Log.d("GameHUD", "[TOUCH] damageBtn: x=${areas.damageButton.x}, y=${areas.damageButton.y}, w=${areas.damageButton.width}, h=${areas.damageButton.height}")
+        android.util.Log.d("GameHUD", "[TOUCH] rangeBtn: x=${areas.rangeButton.x}, y=${areas.rangeButton.y}, w=${areas.rangeButton.width}, h=${areas.rangeButton.height}")
+        android.util.Log.d("GameHUD", "[TOUCH] fireRateBtn: x=${areas.fireRateButton.x}, y=${areas.fireRateButton.y}, w=${areas.fireRateButton.width}, h=${areas.fireRateButton.height}")
+        android.util.Log.d("GameHUD", "[TOUCH] closeBtn: x=${areas.closeButton.x}, y=${areas.closeButton.y}, w=${areas.closeButton.width}, h=${areas.closeButton.height}")
 
         // Check close button first
         if (isPointInRect(screenX, touchY, areas.closeButton)) {
@@ -2514,22 +2531,34 @@ class GameHUD(
             return UpgradeAction.CLOSE_PANEL
         }
 
-        // Check upgrade buttons
-        if (isPointInRect(screenX, touchY, areas.damageButton)) {
+        // Check upgrade buttons with logging
+        val hitDamage = isPointInRect(screenX, touchY, areas.damageButton)
+        val hitRange = isPointInRect(screenX, touchY, areas.rangeButton)
+        val hitFireRate = isPointInRect(screenX, touchY, areas.fireRateButton)
+        val hitSell = isPointInRect(screenX, touchY, areas.sellButton)
+        val hitPanel = isPointInRect(screenX, touchY, areas.panelBounds)
+
+        android.util.Log.d("GameHUD", "[TOUCH] Hit tests: damage=$hitDamage, range=$hitRange, fireRate=$hitFireRate, sell=$hitSell, panel=$hitPanel")
+
+        if (hitDamage) {
+            android.util.Log.d("GameHUD", "[TOUCH] -> UPGRADE_DAMAGE")
             AudioEventHandler.onButtonClick()
             return UpgradeAction.UPGRADE_DAMAGE
         }
-        if (isPointInRect(screenX, touchY, areas.rangeButton)) {
+        if (hitRange) {
+            android.util.Log.d("GameHUD", "[TOUCH] -> UPGRADE_RANGE")
             AudioEventHandler.onButtonClick()
             return UpgradeAction.UPGRADE_RANGE
         }
-        if (isPointInRect(screenX, touchY, areas.fireRateButton)) {
+        if (hitFireRate) {
+            android.util.Log.d("GameHUD", "[TOUCH] -> UPGRADE_FIRE_RATE")
             AudioEventHandler.onButtonClick()
             return UpgradeAction.UPGRADE_FIRE_RATE
         }
 
         // Check sell button
-        if (isPointInRect(screenX, touchY, areas.sellButton)) {
+        if (hitSell) {
+            android.util.Log.d("GameHUD", "[TOUCH] -> SELL")
             AudioEventHandler.onButtonClick()
             return UpgradeAction.SELL
         }
@@ -2539,6 +2568,7 @@ class GameHUD(
         if (abilityBtn != null && isPointInRect(screenX, touchY, abilityBtn)) {
             val ability = abilityData
             if (ability != null && ability.canActivate) {
+                android.util.Log.d("GameHUD", "[TOUCH] -> ACTIVATE_ABILITY")
                 AudioEventHandler.onButtonClick()
                 return UpgradeAction.ACTIVATE_ABILITY
             }
@@ -2547,16 +2577,19 @@ class GameHUD(
         // Check targeting button
         val targetingBtn = areas.targetingButton
         if (targetingBtn != null && isPointInRect(screenX, touchY, targetingBtn)) {
+            android.util.Log.d("GameHUD", "[TOUCH] -> CYCLE_TARGETING_MODE")
             AudioEventHandler.onButtonClick()
             return UpgradeAction.CYCLE_TARGETING_MODE
         }
 
         // Check if touch is within panel bounds (consume touch but no action)
-        if (isPointInRect(screenX, touchY, areas.panelBounds)) {
+        if (hitPanel) {
+            android.util.Log.d("GameHUD", "[TOUCH] -> null (in panel, no button)")
             return null  // Touch consumed but no specific action
         }
 
         // Touch outside panel - close it
+        android.util.Log.d("GameHUD", "[TOUCH] -> CLOSE_PANEL (outside)")
         return UpgradeAction.CLOSE_PANEL
     }
 
@@ -2564,10 +2597,21 @@ class GameHUD(
      * Check if upgrade panel is currently visible and should handle touches.
      */
     fun isUpgradePanelTouched(screenX: Float, screenY: Float): Boolean {
-        if (!isUpgradePanelOpen) return false
-        val areas = upgradePanelAreas ?: return false
+        android.util.Log.d("GameHUD", "[TOUCH] isUpgradePanelTouched called: isOpen=$isUpgradePanelOpen, areas=${upgradePanelAreas != null}")
+        if (!isUpgradePanelOpen) {
+            return false
+        }
+        // If panel is open but areas not yet rendered, return TRUE to consume touch
+        // This prevents the touch from falling through and closing the panel prematurely
+        val areas = upgradePanelAreas
+        if (areas == null) {
+            android.util.Log.d("GameHUD", "[TOUCH] Panel open but areas not ready - consuming touch")
+            return true  // Consume touch to prevent fallthrough
+        }
         val touchY = screenHeight - screenY
-        return isPointInRect(screenX, touchY, areas.panelBounds)
+        val result = isPointInRect(screenX, touchY, areas.panelBounds)
+        android.util.Log.d("GameHUD", "[TOUCH] Panel bounds check: touch($screenX, $touchY) vs bounds(${areas.panelBounds.x}, ${areas.panelBounds.y}, ${areas.panelBounds.width}, ${areas.panelBounds.height}) = $result")
+        return result
     }
 
     private fun isPointInRect(x: Float, y: Float, rect: Rectangle): Boolean {
@@ -2729,8 +2773,15 @@ class GameHUD(
      * This position never covers the tower or its range circle.
      */
     fun renderCornerUpgradePanel(spriteBatch: SpriteBatch, whiteTexture: Texture) {
-        val data = upgradePanelData ?: return
-        if (!isUpgradePanelOpen) return
+        android.util.Log.d("GameHUD", "[RENDER] renderCornerUpgradePanel called: data=${upgradePanelData != null}, isOpen=$isUpgradePanelOpen")
+        val data = upgradePanelData ?: run {
+            android.util.Log.w("GameHUD", "[RENDER] upgradePanelData is null, returning")
+            return
+        }
+        if (!isUpgradePanelOpen) {
+            android.util.Log.w("GameHUD", "[RENDER] isUpgradePanelOpen is false, returning")
+            return
+        }
 
         // Animate panel appearance (slide from right edge)
         upgradePanelAnimProgress = (upgradePanelAnimProgress + 0.04f).coerceAtMost(1f)  // ~250ms
@@ -2926,8 +2977,9 @@ class GameHUD(
         val closeBtnY = panelY + panelHeight - closeBtnSize - panelPadding / 2f
         renderCloseButton(spriteBatch, whiteTexture, closeBtnX, closeBtnY, closeBtnSize, animAlpha)
 
-        // Store touch areas (with touch padding for close button)
+        // Store touch areas using RENDERED positions (animated) so touches match visual
         val touchPadding = 8f * scaleFactor
+        android.util.Log.d("GameHUD", "[RENDER] Storing upgradePanelAreas: panelX=$panelX, panelY=$panelY")
         upgradePanelAreas = UpgradePanelAreas(
             panelBounds = Rectangle(panelX, panelY, panelWidth, panelHeight),
             damageButton = dmgBtnArea,
