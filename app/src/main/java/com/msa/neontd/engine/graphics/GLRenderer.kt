@@ -15,8 +15,11 @@ import com.msa.neontd.engine.resources.Texture
 import com.msa.neontd.engine.shaders.ShaderManager
 import com.msa.neontd.engine.shaders.ShaderProgram
 import com.msa.neontd.engine.vfx.BloomEffect
+import com.msa.neontd.engine.vfx.AmbientParticleSystem
 import com.msa.neontd.config.RenderConfig
+import com.msa.neontd.game.CityPropManager
 import com.msa.neontd.engine.graphics3d.GLTFLoader
+import com.msa.neontd.engine.graphics3d.MapRenderer3D
 import com.msa.neontd.engine.graphics3d.ModelBatch
 import com.msa.neontd.engine.graphics3d.ModelCache
 import com.msa.neontd.game.components.ModelComponent
@@ -95,6 +98,12 @@ class GLRenderer(
     // Bloom post-processing
     private lateinit var bloomEffect: BloomEffect
     private var bloomEnabled: Boolean = true
+
+    // Atmosphere systems
+    private var backgroundRenderer: BackgroundRenderer? = null
+    private var ambientParticles: AmbientParticleSystem? = null
+    private var cityPropManager: CityPropManager? = null
+    private var mapRenderer3D: MapRenderer3D? = null  // Extended platform + map tiles
 
     // 3D rendering components (Phase 1)
     private var modelBatch: ModelBatch? = null
@@ -476,6 +485,11 @@ class GLRenderer(
             bloomEffect.update(deltaTime)
         }
 
+        // Update atmosphere systems (always, for continuous animation)
+        backgroundRenderer?.update(deltaTime)
+        ambientParticles?.update(deltaTime, gameWorld.gridMap.worldWidth, gameWorld.gridMap.worldHeight)
+        cityPropManager?.update(deltaTime)
+
         // Always update HUD for animations
         gameHUD.update(deltaTime)
 
@@ -567,6 +581,9 @@ class GLRenderer(
             GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
         }
 
+        // Render gradient background FIRST (behind everything)
+        backgroundRenderer?.render()
+
         // Update 3D matrices if in isometric mode
         if (RenderConfig.use3DCamera) {
             update3DMatrices()
@@ -575,6 +592,9 @@ class GLRenderer(
         // Render game world - use isometric matrix if in isometric mode
         val worldMatrix = if (RenderConfig.use3DCamera) combinedMatrix3D else null
         gameWorld.render(spriteBatch, spriteShader, whitePixelTexture, interpolation, worldMatrix)
+
+        // Render ambient particles (between game world and 3D content)
+        renderAmbientParticles(worldMatrix)
 
         // Render 3D content on top if enabled
         if (RenderConfig.use3DRendering) {
@@ -596,6 +616,9 @@ class GLRenderer(
         // Clear the screen
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT)
 
+        // Render gradient background FIRST (behind everything)
+        backgroundRenderer?.render()
+
         // Update 3D matrices if in isometric mode
         if (RenderConfig.use3DCamera) {
             update3DMatrices()
@@ -604,6 +627,9 @@ class GLRenderer(
         // Render game world - use isometric matrix if in isometric mode
         val worldMatrix = if (RenderConfig.use3DCamera) combinedMatrix3D else null
         gameWorld.render(spriteBatch, spriteShader, whitePixelTexture, interpolation, worldMatrix)
+
+        // Render ambient particles (between game world and 3D content)
+        renderAmbientParticles(worldMatrix)
 
         // Render 3D content on top if enabled
         if (RenderConfig.use3DRendering) {
@@ -1071,7 +1097,56 @@ class GLRenderer(
         // Preload common models
         preload3DModels()
 
+        // Initialize atmosphere systems
+        initializeAtmosphere()
+
         Log.d(TAG, "3D rendering initialization complete")
+    }
+
+    /**
+     * Initialize atmosphere rendering systems.
+     */
+    private fun initializeAtmosphere() {
+        Log.d(TAG, "Initializing atmosphere systems")
+
+        // Initialize gradient background renderer
+        backgroundRenderer = BackgroundRenderer(context)
+        val bgSuccess = backgroundRenderer?.initialize() ?: false
+        if (!bgSuccess) {
+            Log.w(TAG, "Background renderer failed to initialize")
+        }
+
+        // Initialize ambient particle system
+        ambientParticles = AmbientParticleSystem(maxParticles = 100)
+
+        // Initialize city prop manager
+        val gltfLoader = modelCache?.let { GLTFLoader(context) }
+        if (gltfLoader != null) {
+            cityPropManager = CityPropManager(context)
+            try {
+                val propSuccess = cityPropManager?.initialize(gltfLoader) ?: false
+                if (propSuccess) {
+                    // Generate props around the map
+                    cityPropManager?.generateProps(
+                        worldWidth = gameWorld.gridMap.worldWidth,
+                        worldHeight = gameWorld.gridMap.worldHeight,
+                        margin = 80f,
+                        spacing = 100f
+                    )
+                    Log.d(TAG, "City props generated: ${cityPropManager?.getPropCount()} props")
+                } else {
+                    Log.w(TAG, "City prop manager failed to initialize")
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "City prop manager error: ${e.message}")
+            }
+        }
+
+        // Extended platform disabled for now - city props work without it
+        // mapRenderer3D = MapRenderer3D(gameWorld.gridMap)
+        // mapRenderer3D?.initialize()
+
+        Log.d(TAG, "Atmosphere systems initialized")
     }
 
     /**
@@ -1499,8 +1574,49 @@ class GLRenderer(
             render3DProjectiles(interpolation)
         }
 
+        // Render city props (decorative background buildings)
+        renderCityProps()
+
         // Disable depth for 2D overlay rendering
         GLES30.glDisable(GLES30.GL_DEPTH_TEST)
+    }
+
+    /**
+     * Render ambient floating particles for atmosphere.
+     */
+    private fun renderAmbientParticles(overrideMatrix: FloatArray?) {
+        val particles = ambientParticles ?: return
+
+        spriteBatch.setProjectionMatrix(overrideMatrix ?: camera.getCombinedMatrix())
+        spriteBatch.begin(spriteShader)
+        particles.render(spriteBatch, whitePixelTexture)
+        spriteBatch.end()
+    }
+
+    /**
+     * Render 3D map tiles and extended platform.
+     */
+    private fun renderMapTiles3D() {
+        val mapRenderer = mapRenderer3D ?: return
+        val batch = modelBatch ?: return
+        val shader = modelShader ?: return
+
+        batch.begin(shader, viewMatrix3D, projectionMatrix3D)
+        mapRenderer.render(batch, Time.totalTime)
+        batch.end()
+    }
+
+    /**
+     * Render 3D city props around the map edges.
+     */
+    private fun renderCityProps() {
+        val props = cityPropManager ?: return
+        val batch = modelBatch ?: return
+        val shader = modelShader ?: return
+
+        if (props.getPropCount() == 0) return
+
+        props.render(batch, shader, viewMatrix3D, projectionMatrix3D)
     }
 
     /**

@@ -37,10 +37,10 @@ class BloomEffect(private val context: Context) {
     private var chromaticShader: ShaderProgram? = null
     private var scanlinesShader: ShaderProgram? = null
 
-    // Bloom settings
-    var threshold: Float = 0.35f
-    var intensity: Float = 1.2f
-    var exposure: Float = 1.0f
+    // Bloom settings - lowered threshold for better visibility
+    var threshold: Float = 0.15f  // Was 0.35 - now darker materials can bloom
+    var intensity: Float = 1.4f   // Was 1.2 - stronger bloom effect
+    var exposure: Float = 1.1f    // Slight exposure boost
     var blurPasses: Int = 2
 
     // Post-processing settings
@@ -48,8 +48,8 @@ class BloomEffect(private val context: Context) {
     var chromaticIntensity: Float = 0.005f  // Subtle RGB separation at edges
 
     var scanlinesEnabled: Boolean = true
-    var scanlinesIntensity: Float = 0.18f   // Noticeable but not overwhelming (18%)
-    var scanlinesCount: Float = 320f        // Good density for HD screens
+    var scanlinesIntensity: Float = 0.08f   // Was 0.18 - reduced for less darkening
+    var scanlinesCount: Float = 400f        // Was 320 - finer lines for HD screens
 
     // Animation time for scanlines flicker
     private var time: Float = 0f

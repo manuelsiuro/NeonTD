@@ -1250,28 +1250,81 @@ class GameWorld(
 
     private fun renderAnimatedPath(spriteBatch: SpriteBatch, whiteTexture: Texture) {
         val cellSize = gridMap.cellSize
+        val edgeWidth = 2.5f  // Width of edge glow strips
 
         for (y in 0 until gridMap.height) {
             for (x in 0 until gridMap.width) {
                 val cell = gridMap.getCell(x, y) ?: continue
                 if (cell.type != CellType.PATH && cell.type != CellType.SPAWN && cell.type != CellType.EXIT) continue
 
-                // Calculate pulse based on position (creates flowing wave effect)
-                val waveOffset = (x + y) * 0.4f
-                val pulse = (sin(pathAnimTimer * 2.5f + waveOffset) * 0.35f + 0.65f).toFloat()
+                // Multi-frequency wave for organic feel
+                val waveOffset1 = (x + y) * 0.4f
+                val waveOffset2 = (x - y) * 0.25f
+                val waveOffset3 = (x * 0.7f + y * 0.3f)
 
-                // Inner glow that pulses
-                val glowSize = cellSize * 0.5f * pulse
+                // Combine multiple sine waves for complex animation
+                val wave1 = sin(pathAnimTimer * 2.5f + waveOffset1) * 0.25f
+                val wave2 = sin(pathAnimTimer * 1.8f + waveOffset2) * 0.15f
+                val wave3 = sin(pathAnimTimer * 4.0f + waveOffset3) * 0.1f
+                val pulse = (wave1 + wave2 + wave3 + 0.65f).toFloat().coerceIn(0.3f, 1f)
+
+                // Determine cell-specific colors (brighter than before)
+                val (baseColor, glowAlpha, edgeAlpha) = when (cell.type) {
+                    CellType.SPAWN -> Triple(Color.NEON_GREEN.copy(), 0.35f, 0.5f)
+                    CellType.EXIT -> Triple(Color.NEON_MAGENTA.copy(), 0.35f, 0.5f)
+                    else -> Triple(Color.NEON_CYAN.copy(), 0.25f, 0.35f)
+                }
+
+                // Inner glow that pulses (larger and brighter)
+                val glowSize = cellSize * 0.55f * pulse
                 val centerX = x * cellSize + cellSize / 2f - glowSize / 2f
                 val centerY = y * cellSize + cellSize / 2f - glowSize / 2f
 
-                val pulseColor = when (cell.type) {
-                    CellType.SPAWN -> Color.NEON_GREEN.copy().also { it.a = 0.2f * pulse }
-                    CellType.EXIT -> Color.NEON_MAGENTA.copy().also { it.a = 0.2f * pulse }
-                    else -> Color.NEON_CYAN.copy().also { it.a = 0.12f * pulse }
-                }
+                val pulseColor = baseColor.copy().also { it.a = glowAlpha * pulse }
                 spriteBatch.draw(whiteTexture, centerX, centerY, glowSize, glowSize,
-                    pulseColor, 0.4f * pulse)
+                    pulseColor, 0.5f * pulse)
+
+                // Render edge glow strips along cell borders
+                val cellX = x * cellSize
+                val cellY = y * cellSize
+                val edgeColor = baseColor.copy().also { it.a = edgeAlpha * pulse }
+                val edgeGlow = 0.4f * pulse
+
+                // Check adjacent cells to determine which edges to highlight
+                val hasPathAbove = gridMap.getCell(x, y + 1)?.type?.let {
+                    it == CellType.PATH || it == CellType.SPAWN || it == CellType.EXIT
+                } == true
+                val hasPathBelow = gridMap.getCell(x, y - 1)?.type?.let {
+                    it == CellType.PATH || it == CellType.SPAWN || it == CellType.EXIT
+                } == true
+                val hasPathLeft = gridMap.getCell(x - 1, y)?.type?.let {
+                    it == CellType.PATH || it == CellType.SPAWN || it == CellType.EXIT
+                } == true
+                val hasPathRight = gridMap.getCell(x + 1, y)?.type?.let {
+                    it == CellType.PATH || it == CellType.SPAWN || it == CellType.EXIT
+                } == true
+
+                // Draw edge strips on borders NOT adjacent to other path cells
+                if (!hasPathAbove) {
+                    // Top edge
+                    spriteBatch.draw(whiteTexture, cellX, cellY + cellSize - edgeWidth,
+                        cellSize, edgeWidth, edgeColor, edgeGlow)
+                }
+                if (!hasPathBelow) {
+                    // Bottom edge
+                    spriteBatch.draw(whiteTexture, cellX, cellY,
+                        cellSize, edgeWidth, edgeColor, edgeGlow)
+                }
+                if (!hasPathLeft) {
+                    // Left edge
+                    spriteBatch.draw(whiteTexture, cellX, cellY,
+                        edgeWidth, cellSize, edgeColor, edgeGlow)
+                }
+                if (!hasPathRight) {
+                    // Right edge
+                    spriteBatch.draw(whiteTexture, cellX + cellSize - edgeWidth, cellY,
+                        edgeWidth, cellSize, edgeColor, edgeGlow)
+                }
             }
         }
     }

@@ -1096,8 +1096,18 @@ class GameHUD(
             whiteTexture,
             0f, 0f,  // Start from actual screen bottom
             screenWidth, towerButtonHeight + 20f * scaleFactor + safeInsets.bottom,
-            Color(0.02f, 0.02f, 0.06f, 0.85f),
+            Color(0.03f, 0.03f, 0.08f, 0.92f),  // Slightly brighter and more opaque
             0f
+        )
+
+        // Add subtle top border to bottom bar
+        val topBorderHeight = 2f * scaleFactor
+        spriteBatch.draw(
+            whiteTexture,
+            0f, towerButtonHeight + 18f * scaleFactor + safeInsets.bottom - topBorderHeight,
+            screenWidth, topBorderHeight,
+            Color.NEON_CYAN.copy().also { it.a = 0.4f },
+            0.3f
         )
 
         // Tower buttons
@@ -1105,51 +1115,62 @@ class GameHUD(
             val tower = area.towerType
             val isSelected = index == selectedTowerIndex
             val canAfford = gold >= tower.baseCost
-            val pulseGlow = if (isSelected) (0.4f + sin(pulseTimer).toFloat() * 0.2f) else 0f
+            val pulseGlow = if (isSelected) (0.6f + sin(pulseTimer).toFloat() * 0.3f) else 0f  // Larger selection glow
 
-            // Calculate affordability animation glow
+            // Calculate affordability animation glow (brighter)
             val affordPulse = affordabilityPulseTimers[index]?.let { timer ->
                 val progress = timer / affordabilityPulseDuration
-                // Pulse effect: sine wave that fades out (3 pulses)
-                (sin(progress * 6f * PI.toFloat()) * progress * 0.5f).coerceAtLeast(0f)
+                // Pulse effect: sine wave that fades out (3 pulses) - BRIGHTER
+                (sin(progress * 6f * PI.toFloat()) * progress * 0.7f).coerceAtLeast(0f)
             } ?: 0f
+
+            // Dark backdrop behind each tower icon for contrast
+            val iconBackdropColor = Color(0.02f, 0.02f, 0.05f, 0.95f)
+            val backdropInset = 3f * scaleFactor
+            spriteBatch.draw(
+                whiteTexture,
+                area.x + backdropInset, area.y + backdropInset,
+                area.width - backdropInset * 2, area.height - backdropInset * 2,
+                iconBackdropColor,
+                0f
+            )
 
             // Button background with affordability pulse effect
             val bgColor = when {
-                isSelected -> tower.baseColor.copy().also { it.a = 0.2f }
-                affordPulse > 0f -> Color.NEON_GREEN.copy().also { it.a = affordPulse * 0.3f }
-                else -> Color(0.08f, 0.08f, 0.12f, 0.9f)
+                isSelected -> tower.baseColor.copy().also { it.a = 0.35f }  // Brighter selected
+                affordPulse > 0f -> Color.NEON_GREEN.copy().also { it.a = affordPulse * 0.45f }  // Brighter pulse
+                else -> Color(0.10f, 0.10f, 0.15f, 0.85f)  // Slightly brighter default
             }
             spriteBatch.draw(
                 whiteTexture,
                 area.x, area.y,
                 area.width, area.height,
                 bgColor,
-                pulseGlow + affordPulse
+                pulseGlow + affordPulse * 1.2f  // More glow
             )
 
             // Draw tower shape icon (positioned above cost display)
             val towerColor = tower.baseColor.copy()
             if (!canAfford) {
-                towerColor.mul(0.4f)
-                towerColor.a = 0.4f
+                towerColor.mul(0.5f)  // Not as dim
+                towerColor.a = 0.5f
             }
             val iconSize = area.width - 20f * scaleFactor
             val iconX = area.x + 10f * scaleFactor
             val iconY = area.costY + costDigitHeight + 6f * scaleFactor  // Above cost display
             val iconGlow = when {
-                affordPulse > 0f -> 0.8f + affordPulse * 0.4f
-                canAfford -> 0.6f
-                else -> 0.15f
+                affordPulse > 0f -> 1.0f + affordPulse * 0.5f  // Brighter pulse glow
+                canAfford -> 0.7f  // Brighter default
+                else -> 0.2f  // Not as dim when unaffordable
             }
 
             renderTowerShapeIcon(spriteBatch, whiteTexture, tower.shape, iconX, iconY, iconSize, area.iconAreaHeight - 12f * scaleFactor, towerColor, iconGlow)
 
-            // Selection border (animated)
+            // Selection border (animated) - LARGER GLOW
             if (isSelected) {
                 val borderColor = Color.NEON_CYAN.copy()
-                val borderWidth = 3f * scaleFactor
-                val borderGlow = 0.7f + sin(pulseTimer * 2f).toFloat() * 0.3f
+                val borderWidth = 4f * scaleFactor  // Thicker border
+                val borderGlow = 0.9f + sin(pulseTimer * 2f).toFloat() * 0.4f  // Brighter glow
                 // Top
                 spriteBatch.draw(whiteTexture, area.x, area.y + area.height - borderWidth, area.width, borderWidth, borderColor, borderGlow)
                 // Bottom
@@ -1158,6 +1179,12 @@ class GameHUD(
                 spriteBatch.draw(whiteTexture, area.x, area.y, borderWidth, area.height, borderColor, borderGlow)
                 // Right
                 spriteBatch.draw(whiteTexture, area.x + area.width - borderWidth, area.y, borderWidth, area.height, borderColor, borderGlow)
+
+                // Additional outer glow ring for selected tower
+                val glowRingColor = tower.baseColor.copy().also { it.a = 0.15f + sin(pulseTimer).toFloat() * 0.1f }
+                val glowRingWidth = 6f * scaleFactor
+                spriteBatch.draw(whiteTexture, area.x - glowRingWidth, area.y - glowRingWidth,
+                    area.width + glowRingWidth * 2, area.height + glowRingWidth * 2, glowRingColor, borderGlow * 0.5f)
             }
 
             // Render cost number using seven-segment display

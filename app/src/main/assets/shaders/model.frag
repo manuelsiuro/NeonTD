@@ -29,6 +29,12 @@ uniform float u_alphaCutoff;
 uniform float u_metallic;
 uniform float u_roughness;
 
+// Rim lighting uniforms
+uniform vec3 u_rimColor;
+uniform float u_rimPower;
+uniform float u_rimIntensity;
+uniform vec3 u_cameraPosition;
+
 // Lighting uniforms
 uniform vec3 u_ambientColor;
 uniform vec3 u_lightColor;
@@ -58,6 +64,22 @@ void main() {
 
     // Apply ambient color influence
     litColor *= mix(vec3(1.0), u_ambientColor, 0.3);
+
+    // === RIM LIGHTING ===
+    // Fresnel-based edge glow for dramatic silhouette visibility
+    if (u_rimIntensity > 0.0) {
+        vec3 viewDir = normalize(u_cameraPosition - v_worldPosition);
+        vec3 normal = normalize(v_worldNormal);
+
+        // Fresnel factor: 1.0 at edges (perpendicular), 0.0 facing camera
+        float fresnel = 1.0 - max(dot(normal, viewDir), 0.0);
+
+        // Apply power curve for sharper rim
+        float rim = pow(fresnel, u_rimPower) * u_rimIntensity;
+
+        // Add rim contribution
+        litColor += u_rimColor * rim;
+    }
 
     // Add emissive contribution for neon glow
     vec3 emission = u_emissiveColor * u_emissiveStrength;
