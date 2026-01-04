@@ -3,7 +3,6 @@ package com.msa.neontd.ui.sharing
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -35,15 +33,9 @@ import androidx.compose.ui.unit.sp
 import com.msa.neontd.game.editor.CellEncoder
 import com.msa.neontd.game.editor.CustomCellType
 import com.msa.neontd.game.editor.CustomLevelData
+import com.msa.neontd.ui.theme.NeonColors
+import com.msa.neontd.ui.theme.NeonScaffold
 import kotlin.math.min
-
-// Neon color palette
-private val NeonBackground = Color(0xFF0A0A12)
-private val NeonDarkPanel = Color(0xFF0D0D18)
-private val NeonCyan = Color(0xFF00FFFF)
-private val NeonGreen = Color(0xFF00FF00)
-private val NeonMagenta = Color(0xFFFF00FF)
-private val NeonRed = Color(0xFFFF3366)
 
 /**
  * Screen for previewing an imported level before saving.
@@ -61,56 +53,25 @@ fun LevelImportPreviewScreen(
 
     val totalEnemies = level.waves.sumOf { wave -> wave.spawns.sumOf { it.count } }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(NeonBackground)
-    ) {
+    NeonScaffold(
+        title = "IMPORT LEVEL",
+        titleColor = NeonColors.Green,
+        onBackClick = onCancel
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
+                .padding(paddingValues)
+                .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(NeonRed.copy(alpha = 0.15f))
-                        .clickable { onCancel() }
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
-                ) {
-                    Text(
-                        text = "✕",
-                        color = NeonRed,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Text(
-                    text = "IMPORT LEVEL",
-                    color = NeonGreen,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
             // Level info card
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(NeonDarkPanel)
-                    .border(2.dp, NeonGreen.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                    .background(NeonColors.DarkPanel)
+                    .border(2.dp, NeonColors.Green.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
                     .padding(16.dp)
             ) {
                 Column {
@@ -137,9 +98,9 @@ fun LevelImportPreviewScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        StatItem("MAP", "${level.map.width}×${level.map.height}", NeonCyan)
-                        StatItem("WAVES", "${level.waves.size}", NeonMagenta)
-                        StatItem("ENEMIES", "$totalEnemies", Color(0xFFFF8800))
+                        StatItem("MAP", "${level.map.width}×${level.map.height}", NeonColors.Cyan)
+                        StatItem("WAVES", "${level.waves.size}", NeonColors.Magenta)
+                        StatItem("ENEMIES", "$totalEnemies", NeonColors.Orange)
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -148,8 +109,8 @@ fun LevelImportPreviewScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        StatItem("GOLD", "${level.settings.startingGold}", Color(0xFFFFFF00))
-                        StatItem("HEALTH", "${level.settings.startingHealth}", NeonGreen)
+                        StatItem("GOLD", "${level.settings.startingGold}", NeonColors.Yellow)
+                        StatItem("HEALTH", "${level.settings.startingHealth}", NeonColors.Green)
                         StatItem("DIFFICULTY", level.settings.difficulty.name, getDifficultyColor(level.settings.difficulty))
                     }
                 }
@@ -162,13 +123,13 @@ fun LevelImportPreviewScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(NeonDarkPanel)
+                    .background(NeonColors.DarkPanel)
                     .padding(12.dp)
             ) {
                 Column {
                     Text(
                         text = "MAP PREVIEW",
-                        color = NeonCyan.copy(alpha = 0.7f),
+                        color = NeonColors.Cyan.copy(alpha = 0.7f),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -200,8 +161,8 @@ fun LevelImportPreviewScreen(
                         .fillMaxWidth()
                         .height(56.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = NeonGreen.copy(alpha = 0.3f),
-                        contentColor = NeonGreen
+                        containerColor = NeonColors.Green.copy(alpha = 0.3f),
+                        contentColor = NeonColors.Green
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -218,8 +179,8 @@ fun LevelImportPreviewScreen(
                         .fillMaxWidth()
                         .height(48.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = NeonCyan.copy(alpha = 0.2f),
-                        contentColor = NeonCyan
+                        containerColor = NeonColors.Cyan.copy(alpha = 0.2f),
+                        contentColor = NeonColors.Cyan
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -294,10 +255,10 @@ private fun MiniMapPreview(
                 val cellType = cells[y][x]
                 val color = when (cellType) {
                     CustomCellType.EMPTY -> Color(0xFF1A1A2E)
-                    CustomCellType.PATH -> NeonCyan.copy(alpha = 0.8f)
+                    CustomCellType.PATH -> NeonColors.Cyan.copy(alpha = 0.8f)
                     CustomCellType.BLOCKED -> Color(0xFF4A4A5A)
-                    CustomCellType.SPAWN -> NeonGreen.copy(alpha = 0.9f)
-                    CustomCellType.EXIT -> NeonRed.copy(alpha = 0.9f)
+                    CustomCellType.SPAWN -> NeonColors.Green.copy(alpha = 0.9f)
+                    CustomCellType.EXIT -> NeonColors.Red.copy(alpha = 0.9f)
                 }
 
                 // Draw with Y inverted (bottom-up)
@@ -314,9 +275,9 @@ private fun MiniMapPreview(
 
 private fun getDifficultyColor(difficulty: com.msa.neontd.game.level.LevelDifficulty): Color {
     return when (difficulty) {
-        com.msa.neontd.game.level.LevelDifficulty.EASY -> NeonGreen
-        com.msa.neontd.game.level.LevelDifficulty.NORMAL -> NeonCyan
-        com.msa.neontd.game.level.LevelDifficulty.HARD -> Color(0xFFFF8800)
-        com.msa.neontd.game.level.LevelDifficulty.EXTREME -> NeonMagenta
+        com.msa.neontd.game.level.LevelDifficulty.EASY -> NeonColors.Green
+        com.msa.neontd.game.level.LevelDifficulty.NORMAL -> NeonColors.Cyan
+        com.msa.neontd.game.level.LevelDifficulty.HARD -> NeonColors.Orange
+        com.msa.neontd.game.level.LevelDifficulty.EXTREME -> NeonColors.Magenta
     }
 }

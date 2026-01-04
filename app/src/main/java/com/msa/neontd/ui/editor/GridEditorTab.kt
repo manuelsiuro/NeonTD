@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.msa.neontd.game.editor.CustomCellType
 import com.msa.neontd.game.editor.CustomMapData
+import com.msa.neontd.ui.theme.NeonColors
 import kotlin.math.min
 
 /**
@@ -77,8 +78,8 @@ fun GridEditorTab(
                 .weight(1f)
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(8.dp))
-                .background(NeonDarkPanel)
-                .border(1.dp, NeonCyan.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                .background(NeonColors.DarkPanel)
+                .border(1.dp, NeonColors.Cyan.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
                 .padding(4.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -117,14 +118,14 @@ private fun MapSizeControls(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .background(NeonDarkPanel)
+            .background(NeonColors.DarkPanel)
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Width control
         Text(
             text = "WIDTH:",
-            color = NeonCyan.copy(alpha = 0.7f),
+            color = NeonColors.Cyan.copy(alpha = 0.7f),
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold
         )
@@ -136,14 +137,14 @@ private fun MapSizeControls(
             steps = CustomMapData.MAX_WIDTH - CustomMapData.MIN_WIDTH - 1,
             modifier = Modifier.weight(1f),
             colors = SliderDefaults.colors(
-                thumbColor = NeonCyan,
-                activeTrackColor = NeonCyan,
-                inactiveTrackColor = NeonCyan.copy(alpha = 0.2f)
+                thumbColor = NeonColors.Cyan,
+                activeTrackColor = NeonColors.Cyan,
+                inactiveTrackColor = NeonColors.Cyan.copy(alpha = 0.2f)
             )
         )
         Text(
             text = "$width",
-            color = NeonCyan,
+            color = NeonColors.Cyan,
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.width(32.dp)
@@ -154,7 +155,7 @@ private fun MapSizeControls(
         // Height control
         Text(
             text = "H:",
-            color = NeonMagenta.copy(alpha = 0.7f),
+            color = NeonColors.Magenta.copy(alpha = 0.7f),
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold
         )
@@ -166,14 +167,14 @@ private fun MapSizeControls(
             steps = CustomMapData.MAX_HEIGHT - CustomMapData.MIN_HEIGHT - 1,
             modifier = Modifier.weight(0.7f),
             colors = SliderDefaults.colors(
-                thumbColor = NeonMagenta,
-                activeTrackColor = NeonMagenta,
-                inactiveTrackColor = NeonMagenta.copy(alpha = 0.2f)
+                thumbColor = NeonColors.Magenta,
+                activeTrackColor = NeonColors.Magenta,
+                inactiveTrackColor = NeonColors.Magenta.copy(alpha = 0.2f)
             )
         )
         Text(
             text = "$height",
-            color = NeonMagenta,
+            color = NeonColors.Magenta,
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.width(32.dp)
@@ -188,10 +189,10 @@ private fun ToolPalette(
 ) {
     val tools = listOf(
         CustomCellType.EMPTY to ("EMPTY" to Color(0xFF1A1A2E)),
-        CustomCellType.PATH to ("PATH" to NeonCyan),
+        CustomCellType.PATH to ("PATH" to NeonColors.Cyan),
         CustomCellType.BLOCKED to ("BLOCK" to Color(0xFF4A4A5A)),
-        CustomCellType.SPAWN to ("SPAWN" to NeonGreen),
-        CustomCellType.EXIT to ("EXIT" to NeonRed)
+        CustomCellType.SPAWN to ("SPAWN" to NeonColors.Green),
+        CustomCellType.EXIT to ("EXIT" to NeonColors.Red)
     )
 
     Row(
@@ -206,7 +207,7 @@ private fun ToolPalette(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(if (isSelected) color.copy(alpha = 0.3f) else NeonDarkPanel)
+                    .background(if (isSelected) color.copy(alpha = 0.3f) else NeonColors.DarkPanel)
                     .border(
                         width = if (isSelected) 2.dp else 1.dp,
                         color = if (isSelected) color else color.copy(alpha = 0.5f),
@@ -328,7 +329,7 @@ private fun GridCanvas(
 
         // Draw border
         drawRect(
-            color = NeonCyan.copy(alpha = 0.5f),
+            color = NeonColors.Cyan.copy(alpha = 0.5f),
             topLeft = Offset(offsetX, offsetY),
             size = Size(width * cellSize, height * cellSize),
             style = Stroke(width = 2f)
@@ -360,10 +361,10 @@ private fun offsetToCell(
 private fun getCellColor(type: CustomCellType): Color {
     return when (type) {
         CustomCellType.EMPTY -> Color(0xFF1A1A2E)      // Dark blue
-        CustomCellType.PATH -> NeonCyan.copy(alpha = 0.8f)  // Neon cyan
+        CustomCellType.PATH -> NeonColors.Cyan.copy(alpha = 0.8f)  // Neon cyan
         CustomCellType.BLOCKED -> Color(0xFF4A4A5A)   // Gray
-        CustomCellType.SPAWN -> NeonGreen.copy(alpha = 0.9f) // Neon green
-        CustomCellType.EXIT -> NeonRed.copy(alpha = 0.9f)    // Red
+        CustomCellType.SPAWN -> NeonColors.Green.copy(alpha = 0.9f) // Neon green
+        CustomCellType.EXIT -> NeonColors.Red.copy(alpha = 0.9f)    // Red
     }
 }
 
@@ -377,13 +378,13 @@ private fun GridStats(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .background(NeonDarkPanel)
+            .background(NeonColors.DarkPanel)
             .padding(8.dp),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        StatItem("PATH", pathCells, NeonCyan)
-        StatItem("SPAWN", spawnPoints, NeonGreen, warning = spawnPoints == 0)
-        StatItem("EXIT", exitPoints, NeonRed, warning = exitPoints == 0)
+        StatItem("PATH", pathCells, NeonColors.Cyan)
+        StatItem("SPAWN", spawnPoints, NeonColors.Green, warning = spawnPoints == 0)
+        StatItem("EXIT", exitPoints, NeonColors.Red, warning = exitPoints == 0)
     }
 }
 
@@ -403,7 +404,7 @@ private fun StatItem(
         )
         Text(
             text = "$value",
-            color = if (warning) NeonOrange else color,
+            color = if (warning) NeonColors.Orange else color,
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold
         )

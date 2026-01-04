@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.msa.neontd.game.editor.LevelSettings
 import com.msa.neontd.game.level.LevelDifficulty
+import com.msa.neontd.ui.theme.NeonColors
 
 /**
  * Settings tab for configuring level metadata and gameplay settings.
@@ -57,14 +58,14 @@ fun SettingsTab(
                     .fillMaxWidth()
                     .height(80.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(NeonBackground)
-                    .border(1.dp, NeonCyan.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                    .background(NeonColors.Background)
+                    .border(1.dp, NeonColors.Cyan.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
                     .padding(12.dp),
                 textStyle = TextStyle(
                     color = Color.White,
                     fontSize = 14.sp
                 ),
-                cursorBrush = SolidColor(NeonCyan)
+                cursorBrush = SolidColor(NeonColors.Cyan)
             )
         }
 
@@ -77,7 +78,7 @@ fun SettingsTab(
                 onValueChange = { onSettingsChange(settings.copy(startingGold = it.toInt())) },
                 valueRange = LevelSettings.MIN_STARTING_GOLD.toFloat()..LevelSettings.MAX_STARTING_GOLD.toFloat(),
                 displayValue = "${settings.startingGold}g",
-                color = NeonYellow
+                color = NeonColors.Yellow
             )
         }
 
@@ -90,7 +91,7 @@ fun SettingsTab(
                 onValueChange = { onSettingsChange(settings.copy(startingHealth = it.toInt())) },
                 valueRange = LevelSettings.MIN_STARTING_HEALTH.toFloat()..LevelSettings.MAX_STARTING_HEALTH.toFloat(),
                 displayValue = "${settings.startingHealth}",
-                color = NeonGreen
+                color = NeonColors.Green
             )
         }
 
@@ -107,7 +108,7 @@ fun SettingsTab(
                 },
                 valueRange = LevelSettings.MIN_DIFFICULTY_MULTIPLIER..LevelSettings.MAX_DIFFICULTY_MULTIPLIER,
                 displayValue = "${String.format("%.1f", settings.difficultyMultiplier)}x",
-                color = NeonOrange
+                color = NeonColors.Orange
             )
             Text(
                 text = "Multiplies enemy health and armor",
@@ -134,14 +135,14 @@ fun SettingsTab(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(8.dp))
-                .background(NeonPurple.copy(alpha = 0.1f))
-                .border(1.dp, NeonPurple.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                .background(NeonColors.PurpleLight.copy(alpha = 0.1f))
+                .border(1.dp, NeonColors.PurpleLight.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
                 .padding(12.dp)
         ) {
             Column {
                 Text(
                     text = "TIPS",
-                    color = NeonPurple,
+                    color = NeonColors.PurpleLight,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -169,12 +170,12 @@ private fun SettingsSection(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(NeonDarkPanel)
+            .background(NeonColors.DarkPanel)
             .padding(12.dp)
     ) {
         Text(
             text = title,
-            color = NeonCyan.copy(alpha = 0.7f),
+            color = NeonColors.Cyan.copy(alpha = 0.7f),
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold
         )
@@ -223,10 +224,10 @@ private fun DifficultySelector(
     onSelected: (LevelDifficulty) -> Unit
 ) {
     val difficulties = listOf(
-        LevelDifficulty.EASY to (NeonGreen to "Easy"),
-        LevelDifficulty.NORMAL to (NeonCyan to "Normal"),
-        LevelDifficulty.HARD to (NeonOrange to "Hard"),
-        LevelDifficulty.EXTREME to (NeonMagenta to "Extreme")
+        LevelDifficulty.EASY to (NeonColors.Green to "Easy"),
+        LevelDifficulty.NORMAL to (NeonColors.Cyan to "Normal"),
+        LevelDifficulty.HARD to (NeonColors.Orange to "Hard"),
+        LevelDifficulty.EXTREME to (NeonColors.Magenta to "Extreme")
     )
 
     Row(

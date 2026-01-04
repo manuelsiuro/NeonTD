@@ -19,8 +19,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -41,17 +39,8 @@ import com.msa.neontd.game.achievements.CosmeticReward
 import com.msa.neontd.game.achievements.CosmeticRewards
 import com.msa.neontd.game.achievements.TowerSkinsRepository
 import com.msa.neontd.game.entities.TowerType
-
-// Neon color palette
-private val NeonBackground = Color(0xFF0A0A12)
-private val NeonDarkPanel = Color(0xFF0D0D18)
-private val NeonCyan = Color(0xFF00FFFF)
-private val NeonMagenta = Color(0xFFFF00FF)
-private val NeonYellow = Color(0xFFFFFF00)
-private val NeonGreen = Color(0xFF00FF00)
-private val NeonOrange = Color(0xFFFF8800)
-private val NeonPurple = Color(0xFF9900FF)
-private val NeonGold = Color(0xFFFFD700)
+import com.msa.neontd.ui.theme.NeonColors
+import com.msa.neontd.ui.theme.NeonScaffold
 
 @Composable
 fun TowerSkinsScreen(
@@ -65,28 +54,17 @@ fun TowerSkinsScreen(
     // Get all tower types that have skins
     val towerTypesWithSkins = remember { CosmeticRewards.getTowerTypesWithSkins() }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(NeonBackground)
-    ) {
+    NeonScaffold(
+        title = "TOWER SKINS",
+        titleColor = NeonColors.Orange,
+        onBackClick = onBackClick
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
+                .padding(padding)
+                .padding(horizontal = 16.dp)
         ) {
-            // Title
-            Text(
-                text = "TOWER SKINS",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = NeonOrange,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
             Text(
                 text = "Customize your towers with unique colors",
                 fontSize = 14.sp,
@@ -168,30 +146,6 @@ fun TowerSkinsScreen(
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Back button
-            Button(
-                onClick = {
-                    AudioEventHandler.onButtonClick()
-                    onBackClick()
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = NeonCyan.copy(alpha = 0.15f),
-                    contentColor = NeonCyan
-                ),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text(
-                    text = "< BACK",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
         }
     }
 }
@@ -209,7 +163,7 @@ private fun TowerTypeChip(
             .clip(RoundedCornerShape(8.dp))
             .background(
                 if (isSelected) towerColor.copy(alpha = 0.25f)
-                else NeonDarkPanel
+                else NeonColors.DarkPanel
             )
             .border(
                 width = if (isSelected) 2.dp else 1.dp,
@@ -241,7 +195,7 @@ private fun TowerTypeChip(
                 Text(
                     text = "*",
                     fontSize = 12.sp,
-                    color = NeonGold
+                    color = NeonColors.Gold
                 )
             }
         }
@@ -263,7 +217,7 @@ private fun SkinSelectionPanel(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(NeonDarkPanel)
+            .background(NeonColors.DarkPanel)
             .border(
                 width = 1.dp,
                 color = towerBaseColor.copy(alpha = 0.3f),
@@ -290,10 +244,10 @@ private fun SkinSelectionPanel(
                     text = "RESET",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
-                    color = NeonOrange.copy(alpha = 0.8f),
+                    color = NeonColors.Orange.copy(alpha = 0.8f),
                     modifier = Modifier
                         .clip(RoundedCornerShape(4.dp))
-                        .background(NeonOrange.copy(alpha = 0.15f))
+                        .background(NeonColors.Orange.copy(alpha = 0.15f))
                         .clickable(onClick = onResetToDefault)
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 )
@@ -403,10 +357,10 @@ private fun SkinOption(
                 text = "EQUIPPED",
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
-                color = NeonGreen,
+                color = NeonColors.Green,
                 modifier = Modifier
                     .clip(RoundedCornerShape(4.dp))
-                    .background(NeonGreen.copy(alpha = 0.15f))
+                    .background(NeonColors.Green.copy(alpha = 0.15f))
                     .padding(horizontal = 6.dp, vertical = 2.dp)
             )
         }

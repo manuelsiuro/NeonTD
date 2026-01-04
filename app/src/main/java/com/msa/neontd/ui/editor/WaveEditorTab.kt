@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import com.msa.neontd.game.editor.CustomWaveData
 import com.msa.neontd.game.editor.CustomWaveSpawn
 import com.msa.neontd.game.entities.EnemyType
+import com.msa.neontd.ui.theme.NeonColors
 
 /**
  * Wave editor tab for configuring waves and enemy spawns.
@@ -70,7 +71,7 @@ fun WaveEditorTab(
         ) {
             Text(
                 text = "WAVES: ${waves.size}",
-                color = NeonMagenta,
+                color = NeonColors.Magenta,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -80,7 +81,7 @@ fun WaveEditorTab(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(NeonGreen.copy(alpha = 0.2f))
+                        .background(NeonColors.Green.copy(alpha = 0.2f))
                         .clickable {
                             if (waves.size < CustomWaveData.MAX_WAVES) {
                                 val newWave = createDefaultWave(waves.size + 1)
@@ -89,7 +90,7 @@ fun WaveEditorTab(
                         }
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
-                    Text("+", color = NeonGreen, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text("+", color = NeonColors.Green, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
@@ -98,7 +99,7 @@ fun WaveEditorTab(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(NeonRed.copy(alpha = 0.2f))
+                        .background(NeonColors.Red.copy(alpha = 0.2f))
                         .clickable {
                             if (waves.size > 1) {
                                 val newWaves = waves.toMutableList()
@@ -115,7 +116,7 @@ fun WaveEditorTab(
                         }
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
-                    Text("-", color = NeonRed, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text("-", color = NeonColors.Red, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -172,12 +173,12 @@ private fun WaveTimeline(
                     .size(50.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .background(
-                        if (isSelected) NeonMagenta.copy(alpha = 0.3f)
-                        else NeonDarkPanel
+                        if (isSelected) NeonColors.Magenta.copy(alpha = 0.3f)
+                        else NeonColors.DarkPanel
                     )
                     .border(
                         width = if (isSelected) 2.dp else 1.dp,
-                        color = if (isSelected) NeonMagenta else NeonMagenta.copy(alpha = 0.3f),
+                        color = if (isSelected) NeonColors.Magenta else NeonColors.Magenta.copy(alpha = 0.3f),
                         shape = RoundedCornerShape(8.dp)
                     )
                     .clickable { onWaveSelected(index) },
@@ -186,7 +187,7 @@ private fun WaveTimeline(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = "${index + 1}",
-                        color = if (isSelected) NeonMagenta else Color.White,
+                        color = if (isSelected) NeonColors.Magenta else Color.White,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -214,7 +215,7 @@ private fun WaveDetailEditor(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(NeonDarkPanel)
+            .background(NeonColors.DarkPanel)
             .padding(12.dp)
     ) {
         // Wave header
@@ -225,7 +226,7 @@ private fun WaveDetailEditor(
         ) {
             Text(
                 text = "WAVE ${wave.waveNumber}",
-                color = NeonMagenta,
+                color = NeonColors.Magenta,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -233,11 +234,11 @@ private fun WaveDetailEditor(
             Button(
                 onClick = { showAddSpawnDialog = true },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = NeonGreen.copy(alpha = 0.2f)
+                    containerColor = NeonColors.Green.copy(alpha = 0.2f)
                 ),
                 shape = RoundedCornerShape(8.dp)
             ) {
-                Text("+ ADD SPAWN", color = NeonGreen, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text("+ ADD SPAWN", color = NeonColors.Green, fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
         }
 
@@ -250,7 +251,7 @@ private fun WaveDetailEditor(
         ) {
             Text(
                 text = "BONUS GOLD:",
-                color = NeonYellow.copy(alpha = 0.7f),
+                color = NeonColors.Yellow.copy(alpha = 0.7f),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -261,14 +262,14 @@ private fun WaveDetailEditor(
                 valueRange = 0f..CustomWaveData.MAX_BONUS_GOLD.toFloat(),
                 modifier = Modifier.weight(1f),
                 colors = SliderDefaults.colors(
-                    thumbColor = NeonYellow,
-                    activeTrackColor = NeonYellow,
-                    inactiveTrackColor = NeonYellow.copy(alpha = 0.2f)
+                    thumbColor = NeonColors.Yellow,
+                    activeTrackColor = NeonColors.Yellow,
+                    inactiveTrackColor = NeonColors.Yellow.copy(alpha = 0.2f)
                 )
             )
             Text(
                 text = "${wave.bonusGold}g",
-                color = NeonYellow,
+                color = NeonColors.Yellow,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.width(40.dp)
@@ -328,7 +329,7 @@ private fun SpawnItemCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .background(NeonBackground)
+            .background(NeonColors.Background)
             .border(1.dp, enemyColor.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
             .padding(8.dp)
     ) {
@@ -358,11 +359,11 @@ private fun SpawnItemCard(
                 Box(
                     modifier = Modifier
                         .clip(CircleShape)
-                        .background(NeonRed.copy(alpha = 0.2f))
+                        .background(NeonColors.Red.copy(alpha = 0.2f))
                         .clickable { onDelete() }
                         .padding(4.dp)
                 ) {
-                    Text("✕", color = NeonRed, fontSize = 12.sp)
+                    Text("✕", color = NeonColors.Red, fontSize = 12.sp)
                 }
             }
 
@@ -409,12 +410,12 @@ private fun SpawnItemCard(
                         valueRange = CustomWaveSpawn.MIN_DELAY..CustomWaveSpawn.MAX_DELAY,
                         modifier = Modifier.weight(1f),
                         colors = SliderDefaults.colors(
-                            thumbColor = NeonCyan,
-                            activeTrackColor = NeonCyan,
-                            inactiveTrackColor = NeonCyan.copy(alpha = 0.2f)
+                            thumbColor = NeonColors.Cyan,
+                            activeTrackColor = NeonColors.Cyan,
+                            inactiveTrackColor = NeonColors.Cyan.copy(alpha = 0.2f)
                         )
                     )
-                    Text("${spawn.delay.toInt()}s", color = NeonCyan, fontSize = 10.sp)
+                    Text("${spawn.delay.toInt()}s", color = NeonColors.Cyan, fontSize = 10.sp)
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
@@ -431,12 +432,12 @@ private fun SpawnItemCard(
                         valueRange = CustomWaveSpawn.MIN_INTERVAL..CustomWaveSpawn.MAX_INTERVAL,
                         modifier = Modifier.weight(1f),
                         colors = SliderDefaults.colors(
-                            thumbColor = NeonOrange,
-                            activeTrackColor = NeonOrange,
-                            inactiveTrackColor = NeonOrange.copy(alpha = 0.2f)
+                            thumbColor = NeonColors.Orange,
+                            activeTrackColor = NeonColors.Orange,
+                            inactiveTrackColor = NeonColors.Orange.copy(alpha = 0.2f)
                         )
                     )
-                    Text("${String.format("%.1f", spawn.interval)}s", color = NeonOrange, fontSize = 10.sp)
+                    Text("${String.format("%.1f", spawn.interval)}s", color = NeonColors.Orange, fontSize = 10.sp)
                 }
             }
         }
@@ -461,15 +462,15 @@ private fun AddSpawnDialog(
             modifier = Modifier
                 .fillMaxWidth(0.9f)
                 .clip(RoundedCornerShape(16.dp))
-                .background(NeonDarkPanel)
-                .border(2.dp, NeonGreen.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
+                .background(NeonColors.DarkPanel)
+                .border(2.dp, NeonColors.Green.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
                 .clickable { /* Prevent dismiss */ }
                 .padding(16.dp)
         ) {
             Column {
                 Text(
                     text = "SELECT ENEMY TYPE",
-                    color = NeonGreen,
+                    color = NeonColors.Green,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -512,11 +513,11 @@ private fun AddSpawnDialog(
                         },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = NeonGreen.copy(alpha = 0.3f)
+                            containerColor = NeonColors.Green.copy(alpha = 0.3f)
                         ),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("ADD", color = NeonGreen, fontWeight = FontWeight.Bold)
+                        Text("ADD", color = NeonColors.Green, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -554,7 +555,7 @@ private fun EnemyTypeSelector(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
-                    .background(if (isSelected) color.copy(alpha = 0.3f) else NeonBackground)
+                    .background(if (isSelected) color.copy(alpha = 0.3f) else NeonColors.Background)
                     .border(
                         width = if (isSelected) 2.dp else 1.dp,
                         color = if (isSelected) color else color.copy(alpha = 0.5f),

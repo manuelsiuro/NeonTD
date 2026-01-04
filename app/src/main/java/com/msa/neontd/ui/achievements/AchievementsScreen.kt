@@ -27,8 +27,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,11 +37,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -52,36 +48,25 @@ import com.msa.neontd.game.achievements.AchievementDefinition
 import com.msa.neontd.game.achievements.AchievementDefinitions
 import com.msa.neontd.game.achievements.AchievementRarity
 import com.msa.neontd.game.achievements.AchievementRepository
-
-// Neon color palette
-private val NeonBackground = Color(0xFF0A0A12)
-private val NeonDarkPanel = Color(0xFF0D0D18)
-private val NeonCyan = Color(0xFF00FFFF)
-private val NeonMagenta = Color(0xFFFF00FF)
-private val NeonYellow = Color(0xFFFFFF00)
-private val NeonGreen = Color(0xFF00FF00)
-private val NeonOrange = Color(0xFFFF8800)
-private val NeonPurple = Color(0xFF9900FF)
-private val NeonBlue = Color(0xFF3388FF)
-private val NeonRed = Color(0xFFFF3366)
-private val NeonGold = Color(0xFFFFD700)
+import com.msa.neontd.ui.theme.NeonColors
+import com.msa.neontd.ui.theme.NeonScaffold
 
 // Category colors
 private fun getCategoryColor(category: AchievementCategory): Color = when (category) {
-    AchievementCategory.COMPLETION -> NeonCyan
-    AchievementCategory.TOWER -> NeonOrange
-    AchievementCategory.COMBAT -> NeonRed
-    AchievementCategory.ECONOMY -> NeonGold
-    AchievementCategory.CHALLENGE -> NeonPurple
+    AchievementCategory.COMPLETION -> NeonColors.Cyan
+    AchievementCategory.TOWER -> NeonColors.Orange
+    AchievementCategory.COMBAT -> NeonColors.Red
+    AchievementCategory.ECONOMY -> NeonColors.Gold
+    AchievementCategory.CHALLENGE -> NeonColors.PurpleLight
 }
 
 // Rarity colors
 private fun getRarityColor(rarity: AchievementRarity): Color = when (rarity) {
     AchievementRarity.COMMON -> Color.White
-    AchievementRarity.UNCOMMON -> NeonGreen
-    AchievementRarity.RARE -> NeonBlue
-    AchievementRarity.EPIC -> NeonPurple
-    AchievementRarity.LEGENDARY -> NeonGold
+    AchievementRarity.UNCOMMON -> NeonColors.Green
+    AchievementRarity.RARE -> NeonColors.Blue
+    AchievementRarity.EPIC -> NeonColors.PurpleLight
+    AchievementRarity.LEGENDARY -> NeonColors.Gold
 }
 
 @Composable
@@ -94,18 +79,24 @@ fun AchievementsScreen(onBackClick: () -> Unit) {
     val unlockedCount = achievementData.getUnlockedCount()
     val totalCount = AchievementDefinitions.totalCount
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(NeonBackground)
-    ) {
+    NeonScaffold(
+        title = "ACHIEVEMENTS",
+        titleColor = NeonColors.Gold,
+        onBackClick = onBackClick
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
+                .padding(paddingValues)
+                .padding(horizontal = 16.dp)
         ) {
-            // Title
-            AchievementTitle(unlockedCount, totalCount)
+            // Stats header showing unlock progress
+            Text(
+                text = "$unlockedCount / $totalCount Unlocked",
+                fontSize = 14.sp,
+                color = Color.White.copy(alpha = 0.7f),
+                modifier = Modifier.fillMaxWidth()
+            )
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -149,49 +140,7 @@ fun AchievementsScreen(onBackClick: () -> Unit) {
             }
 
             Spacer(modifier = Modifier.height(12.dp))
-
-            // Back button
-            Button(
-                onClick = onBackClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = NeonCyan.copy(alpha = 0.15f),
-                    contentColor = NeonCyan
-                ),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text(
-                    text = "< BACK TO MENU",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
         }
-    }
-}
-
-@Composable
-private fun AchievementTitle(unlockedCount: Int, totalCount: Int) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = "ACHIEVEMENTS",
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            color = NeonCyan,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = "$unlockedCount / $totalCount Unlocked",
-            fontSize = 14.sp,
-            color = Color.White.copy(alpha = 0.7f),
-            textAlign = TextAlign.Center
-        )
     }
 }
 
@@ -200,14 +149,14 @@ private fun StatsSummary(stats: com.msa.neontd.game.achievements.PlayerStats) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(NeonDarkPanel, RoundedCornerShape(8.dp))
+            .background(NeonColors.DarkPanel, RoundedCornerShape(8.dp))
             .padding(12.dp),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        StatItem(label = "KILLS", value = stats.totalEnemiesKilled.toString(), color = NeonRed)
-        StatItem(label = "TOWERS", value = stats.totalTowersPlaced.toString(), color = NeonOrange)
-        StatItem(label = "GOLD", value = formatGold(stats.totalGoldEarned), color = NeonGold)
-        StatItem(label = "WINS", value = stats.totalVictories.toString(), color = NeonGreen)
+        StatItem(label = "KILLS", value = stats.totalEnemiesKilled.toString(), color = NeonColors.Red)
+        StatItem(label = "TOWERS", value = stats.totalTowersPlaced.toString(), color = NeonColors.Orange)
+        StatItem(label = "GOLD", value = formatGold(stats.totalGoldEarned), color = NeonColors.Gold)
+        StatItem(label = "WINS", value = stats.totalVictories.toString(), color = NeonColors.Green)
     }
 }
 
@@ -293,7 +242,7 @@ private fun AchievementCard(
     progress: Int
 ) {
     val rarityColor = getRarityColor(achievement.rarity)
-    val borderColor = if (isUnlocked) rarityColor else NeonMagenta.copy(alpha = 0.3f)
+    val borderColor = if (isUnlocked) rarityColor else NeonColors.Magenta.copy(alpha = 0.3f)
     val progressPercent = if (achievement.targetValue > 1) {
         (progress.toFloat() / achievement.targetValue).coerceIn(0f, 1f)
     } else {
@@ -310,7 +259,7 @@ private fun AchievementCard(
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                if (isUnlocked) NeonDarkPanel else NeonDarkPanel.copy(alpha = 0.5f),
+                if (isUnlocked) NeonColors.DarkPanel else NeonColors.DarkPanel.copy(alpha = 0.5f),
                 RoundedCornerShape(8.dp)
             )
             .border(1.dp, borderColor, RoundedCornerShape(8.dp))
@@ -363,7 +312,7 @@ private fun AchievementCard(
                         Text(
                             text = "$progress/${achievement.targetValue}",
                             fontSize = 12.sp,
-                            color = if (isUnlocked) NeonGreen else NeonYellow.copy(alpha = 0.7f)
+                            color = if (isUnlocked) NeonColors.Green else NeonColors.Yellow.copy(alpha = 0.7f)
                         )
                     }
                 }
@@ -387,7 +336,7 @@ private fun AchievementCard(
                             .fillMaxWidth()
                             .height(4.dp)
                             .clip(RoundedCornerShape(2.dp)),
-                        color = NeonYellow,
+                        color = NeonColors.Yellow,
                         trackColor = Color.Gray.copy(alpha = 0.3f)
                     )
                 }
@@ -398,7 +347,7 @@ private fun AchievementCard(
                     Text(
                         text = if (isUnlocked) "★ Reward unlocked!" else "★ Unlocks reward",
                         fontSize = 10.sp,
-                        color = if (isUnlocked) NeonGold else NeonGold.copy(alpha = 0.5f)
+                        color = if (isUnlocked) NeonColors.Gold else NeonColors.Gold.copy(alpha = 0.5f)
                     )
                 }
             }

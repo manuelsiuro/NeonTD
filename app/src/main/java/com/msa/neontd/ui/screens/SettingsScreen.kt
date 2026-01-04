@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,8 +13,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -35,18 +32,12 @@ import androidx.compose.ui.unit.sp
 import com.msa.neontd.engine.audio.AudioEventHandler
 import com.msa.neontd.engine.audio.AudioManager
 import com.msa.neontd.engine.graphics.GLRenderer
-
-// Neon color palette
-private val NeonBackground = Color(0xFF0A0A12)
-private val NeonCyan = Color(0xFF00FFFF)
-private val NeonMagenta = Color(0xFFFF00FF)
-private val NeonAmber = Color(0xFFFFAA00)
+import com.msa.neontd.ui.theme.NeonButton
+import com.msa.neontd.ui.theme.NeonColors
+import com.msa.neontd.ui.theme.NeonScaffold
 
 private const val PREFS_NAME = "neontd_graphics"
 private const val KEY_SHADERS_ENABLED = "shaders_enabled"
-
-// Additional colors
-private val NeonGold = Color(0xFFFFD700)
 
 /**
  * Settings screen for managing game audio and visual settings.
@@ -74,26 +65,20 @@ fun SettingsScreen(
         onDispose { }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(NeonBackground),
-        contentAlignment = Alignment.Center
-    ) {
+    NeonScaffold(
+        title = "SETTINGS",
+        titleColor = NeonColors.Amber,
+        onBackClick = onBackClick
+    ) { padding ->
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(32.dp)
+            verticalArrangement = Arrangement.Top,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 32.dp, vertical = 24.dp)
         ) {
-            // Title
-            Text(
-                text = "SETTINGS",
-                color = NeonAmber,
-                fontSize = 36.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Background Music Toggle
             SettingsToggleRow(
@@ -105,7 +90,7 @@ fun SettingsScreen(
                     AudioManager.saveSettings(context)
                     AudioEventHandler.onButtonClick()
                 },
-                accentColor = NeonCyan
+                accentColor = NeonColors.Cyan
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -122,7 +107,7 @@ fun SettingsScreen(
                         AudioEventHandler.onButtonClick()
                     }
                 },
-                accentColor = NeonMagenta
+                accentColor = NeonColors.Magenta
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -137,54 +122,18 @@ fun SettingsScreen(
                     graphicsPrefs.edit().putBoolean(KEY_SHADERS_ENABLED, enabled).apply()
                     AudioEventHandler.onButtonClick()
                 },
-                accentColor = NeonAmber
+                accentColor = NeonColors.Amber
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
             // Tower Skins Button
-            Button(
-                onClick = {
-                    AudioEventHandler.onButtonClick()
-                    onTowerSkinsClick()
-                },
-                modifier = Modifier
-                    .fillMaxWidth(0.85f)
-                    .height(48.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = NeonGold.copy(alpha = 0.2f),
-                    contentColor = NeonGold
-                )
-            ) {
-                Text(
-                    text = "TOWER SKINS",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Spacer(modifier = Modifier.height(48.dp))
-
-            // Back Button
-            Button(
-                onClick = {
-                    AudioEventHandler.onButtonClick()
-                    onBackClick()
-                },
-                modifier = Modifier
-                    .fillMaxWidth(0.5f)
-                    .height(48.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = NeonCyan.copy(alpha = 0.2f),
-                    contentColor = NeonCyan
-                )
-            ) {
-                Text(
-                    text = "BACK",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+            NeonButton(
+                text = "TOWER SKINS",
+                onClick = onTowerSkinsClick,
+                color = NeonColors.Gold,
+                widthFraction = 0.85f
+            )
         }
     }
 }
@@ -198,7 +147,7 @@ private fun SettingsToggleRow(
 ) {
     Row(
         modifier = Modifier
-            .fillMaxWidth(0.85f)
+            .fillMaxWidth()
             .border(
                 width = 1.dp,
                 color = accentColor.copy(alpha = 0.5f),

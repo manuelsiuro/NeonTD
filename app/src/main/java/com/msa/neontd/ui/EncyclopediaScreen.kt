@@ -63,20 +63,10 @@ import com.msa.neontd.game.data.SynergyInfo
 import com.msa.neontd.game.data.TowerInfo
 import com.msa.neontd.game.heroes.HeroPassiveType
 import com.msa.neontd.game.synergies.TowerSynergy
+import com.msa.neontd.ui.theme.NeonColors
+import com.msa.neontd.ui.theme.NeonScaffold
 import kotlin.math.cos
 import kotlin.math.sin
-
-// Neon color palette
-private val NeonBackground = Color(0xFF0A0A12)
-private val NeonDarkPanel = Color(0xFF0D0D18)
-private val NeonCyan = Color(0xFF00FFFF)
-private val NeonMagenta = Color(0xFFFF00FF)
-private val NeonYellow = Color(0xFFFFFF00)
-private val NeonGreen = Color(0xFF00FF00)
-private val NeonOrange = Color(0xFFFF8800)
-private val NeonPurple = Color(0xFF9900FF)
-private val NeonBlue = Color(0xFF3388FF)
-private val NeonRed = Color(0xFFFF3366)
 
 @Composable
 fun EncyclopediaScreen(onBackClick: () -> Unit) {
@@ -86,21 +76,17 @@ fun EncyclopediaScreen(onBackClick: () -> Unit) {
     var synergyIndex by remember { mutableIntStateOf(0) }
     var heroIndex by remember { mutableIntStateOf(0) }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(NeonBackground)
-    ) {
+    NeonScaffold(
+        title = "ENCYCLOPEDIA",
+        titleColor = NeonColors.Cyan,
+        onBackClick = onBackClick
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
+                .padding(paddingValues)
+                .padding(horizontal = 16.dp)
         ) {
-            // Title with glow
-            NeonTitle()
-
-            Spacer(modifier = Modifier.height(12.dp))
-
             // Tabs
             TabRow(
                 selectedTab = selectedTab,
@@ -141,55 +127,7 @@ fun EncyclopediaScreen(onBackClick: () -> Unit) {
             }
 
             Spacer(modifier = Modifier.height(12.dp))
-
-            // Back button
-            Button(
-                onClick = onBackClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = NeonCyan.copy(alpha = 0.15f),
-                    contentColor = NeonCyan
-                ),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text(
-                    text = "◄ BACK TO MENU",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
         }
-    }
-}
-
-@Composable
-private fun NeonTitle() {
-    val infiniteTransition = rememberInfiniteTransition(label = "title")
-    val glowAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.7f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "glow"
-    )
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "⬡ ENCYCLOPEDIA ⬡",
-            color = NeonCyan.copy(alpha = glowAlpha),
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center
-        )
     }
 }
 
@@ -203,7 +141,7 @@ private fun TabRow(selectedTab: Int, onTabSelected: (Int) -> Unit) {
             text = "TOWERS",
             count = Encyclopedia.towers.size,
             isSelected = selectedTab == 0,
-            color = NeonCyan,
+            color = NeonColors.Cyan,
             modifier = Modifier.weight(1f),
             onClick = { onTabSelected(0) }
         )
@@ -211,7 +149,7 @@ private fun TabRow(selectedTab: Int, onTabSelected: (Int) -> Unit) {
             text = "ENEMIES",
             count = Encyclopedia.enemies.size,
             isSelected = selectedTab == 1,
-            color = NeonMagenta,
+            color = NeonColors.Magenta,
             modifier = Modifier.weight(1f),
             onClick = { onTabSelected(1) }
         )
@@ -219,7 +157,7 @@ private fun TabRow(selectedTab: Int, onTabSelected: (Int) -> Unit) {
             text = "SYNERGIES",
             count = Encyclopedia.synergies.size,
             isSelected = selectedTab == 2,
-            color = NeonYellow,
+            color = NeonColors.Yellow,
             modifier = Modifier.weight(1f),
             onClick = { onTabSelected(2) }
         )
@@ -227,7 +165,7 @@ private fun TabRow(selectedTab: Int, onTabSelected: (Int) -> Unit) {
             text = "HEROES",
             count = Encyclopedia.heroes.size,
             isSelected = selectedTab == 3,
-            color = NeonOrange,
+            color = NeonColors.Orange,
             modifier = Modifier.weight(1f),
             onClick = { onTabSelected(3) }
         )
@@ -299,7 +237,7 @@ private fun TowerPager(currentIndex: Int, onIndexChange: (Int) -> Unit) {
             currentIndex = currentIndex,
             total = towers.size,
             itemName = tower.type.displayName,
-            accentColor = NeonCyan,
+            accentColor = NeonColors.Cyan,
             onPrevious = { if (currentIndex > 0) onIndexChange(currentIndex - 1) },
             onNext = { if (currentIndex < towers.size - 1) onIndexChange(currentIndex + 1) }
         )
@@ -315,7 +253,7 @@ private fun TowerPager(currentIndex: Int, onIndexChange: (Int) -> Unit) {
         PageIndicators(
             currentIndex = currentIndex,
             total = towers.size,
-            color = NeonCyan,
+            color = NeonColors.Cyan,
             onIndexSelected = onIndexChange
         )
     }
@@ -332,7 +270,7 @@ private fun EnemyPager(currentIndex: Int, onIndexChange: (Int) -> Unit) {
             currentIndex = currentIndex,
             total = enemies.size,
             itemName = enemy.type.displayName,
-            accentColor = NeonMagenta,
+            accentColor = NeonColors.Magenta,
             onPrevious = { if (currentIndex > 0) onIndexChange(currentIndex - 1) },
             onNext = { if (currentIndex < enemies.size - 1) onIndexChange(currentIndex + 1) }
         )
@@ -348,7 +286,7 @@ private fun EnemyPager(currentIndex: Int, onIndexChange: (Int) -> Unit) {
         PageIndicators(
             currentIndex = currentIndex,
             total = enemies.size,
-            color = NeonMagenta,
+            color = NeonColors.Magenta,
             onIndexSelected = onIndexChange
         )
     }
@@ -365,7 +303,7 @@ private fun SynergyPager(currentIndex: Int, onIndexChange: (Int) -> Unit) {
             currentIndex = currentIndex,
             total = synergies.size,
             itemName = synergy.synergy.displayName,
-            accentColor = NeonYellow,
+            accentColor = NeonColors.Yellow,
             onPrevious = { if (currentIndex > 0) onIndexChange(currentIndex - 1) },
             onNext = { if (currentIndex < synergies.size - 1) onIndexChange(currentIndex + 1) }
         )
@@ -381,7 +319,7 @@ private fun SynergyPager(currentIndex: Int, onIndexChange: (Int) -> Unit) {
         PageIndicators(
             currentIndex = currentIndex,
             total = synergies.size,
-            color = NeonYellow,
+            color = NeonColors.Yellow,
             onIndexSelected = onIndexChange
         )
     }
@@ -487,16 +425,16 @@ private fun ColumnScope.TowerDetailCard(tower: TowerInfo) {
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        NeonDarkPanel,
-                        NeonDarkPanel.copy(alpha = 0.95f),
-                        NeonBackground
+                        NeonColors.DarkPanel,
+                        NeonColors.DarkPanel.copy(alpha = 0.95f),
+                        NeonColors.Background
                     )
                 )
             )
             .border(
                 width = 2.dp,
                 brush = Brush.verticalGradient(
-                    colors = listOf(NeonCyan.copy(alpha = 0.6f), NeonCyan.copy(alpha = 0.2f))
+                    colors = listOf(NeonColors.Cyan.copy(alpha = 0.6f), NeonColors.Cyan.copy(alpha = 0.2f))
                 ),
                 shape = RoundedCornerShape(16.dp)
             )
@@ -539,10 +477,10 @@ private fun ColumnScope.TowerDetailCard(tower: TowerInfo) {
 
             // Stats grid
             StatsGrid {
-                StatBox("COST", "${tower.type.baseCost}g", NeonYellow)
-                StatBox("DAMAGE", "${tower.damage.toInt()}", NeonOrange)
-                StatBox("RANGE", "${tower.range.toInt()}", NeonBlue)
-                StatBox("FIRE RATE", "${tower.fireRate}/s", NeonGreen)
+                StatBox("COST", "${tower.type.baseCost}g", NeonColors.Yellow)
+                StatBox("DAMAGE", "${tower.damage.toInt()}", NeonColors.Orange)
+                StatBox("RANGE", "${tower.range.toInt()}", NeonColors.Blue)
+                StatBox("FIRE RATE", "${tower.fireRate}/s", NeonColors.Green)
             }
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -551,7 +489,7 @@ private fun ColumnScope.TowerDetailCard(tower: TowerInfo) {
             tower.specialAbility?.let { ability ->
                 InfoSection(
                     title = "⚡ SPECIAL ABILITY",
-                    titleColor = NeonMagenta,
+                    titleColor = NeonColors.Magenta,
                     content = ability
                 )
                 Spacer(modifier = Modifier.height(16.dp))
@@ -560,7 +498,7 @@ private fun ColumnScope.TowerDetailCard(tower: TowerInfo) {
             // Tips section
             InfoSection(
                 title = "💡 TACTICAL TIP",
-                titleColor = NeonGreen,
+                titleColor = NeonColors.Green,
                 content = tower.tips
             )
         }
@@ -591,16 +529,16 @@ private fun ColumnScope.EnemyDetailCard(enemy: EnemyInfo) {
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        NeonDarkPanel,
-                        NeonDarkPanel.copy(alpha = 0.95f),
-                        NeonBackground
+                        NeonColors.DarkPanel,
+                        NeonColors.DarkPanel.copy(alpha = 0.95f),
+                        NeonColors.Background
                     )
                 )
             )
             .border(
                 width = 2.dp,
                 brush = Brush.verticalGradient(
-                    colors = listOf(NeonMagenta.copy(alpha = 0.6f), NeonMagenta.copy(alpha = 0.2f))
+                    colors = listOf(NeonColors.Magenta.copy(alpha = 0.6f), NeonColors.Magenta.copy(alpha = 0.2f))
                 ),
                 shape = RoundedCornerShape(16.dp)
             )
@@ -642,10 +580,10 @@ private fun ColumnScope.EnemyDetailCard(enemy: EnemyInfo) {
 
             // Stats grid
             StatsGrid {
-                StatBox("HEALTH", "${enemy.type.baseHealth.toInt()}", NeonGreen)
-                StatBox("SPEED", "${enemy.type.baseSpeed.toInt()}", NeonCyan)
-                StatBox("ARMOR", "${enemy.type.baseArmor.toInt()}", NeonBlue)
-                StatBox("GOLD", "${enemy.type.goldReward}g", NeonYellow)
+                StatBox("HEALTH", "${enemy.type.baseHealth.toInt()}", NeonColors.Green)
+                StatBox("SPEED", "${enemy.type.baseSpeed.toInt()}", NeonColors.Cyan)
+                StatBox("ARMOR", "${enemy.type.baseArmor.toInt()}", NeonColors.Blue)
+                StatBox("GOLD", "${enemy.type.goldReward}g", NeonColors.Yellow)
             }
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -654,7 +592,7 @@ private fun ColumnScope.EnemyDetailCard(enemy: EnemyInfo) {
             enemy.specialAbility?.let { ability ->
                 InfoSection(
                     title = "⚡ ABILITY",
-                    titleColor = NeonPurple,
+                    titleColor = NeonColors.PurpleLight,
                     content = ability
                 )
                 Spacer(modifier = Modifier.height(12.dp))
@@ -664,7 +602,7 @@ private fun ColumnScope.EnemyDetailCard(enemy: EnemyInfo) {
             if (enemy.weaknesses.isNotEmpty()) {
                 InfoSection(
                     title = "✓ WEAK TO",
-                    titleColor = NeonGreen,
+                    titleColor = NeonColors.Green,
                     content = enemy.weaknesses.joinToString(" • ")
                 )
                 Spacer(modifier = Modifier.height(12.dp))
@@ -674,7 +612,7 @@ private fun ColumnScope.EnemyDetailCard(enemy: EnemyInfo) {
             if (enemy.resistances.isNotEmpty()) {
                 InfoSection(
                     title = "✗ RESISTS",
-                    titleColor = NeonRed,
+                    titleColor = NeonColors.Red,
                     content = enemy.resistances.joinToString(" • ")
                 )
                 Spacer(modifier = Modifier.height(12.dp))
@@ -683,7 +621,7 @@ private fun ColumnScope.EnemyDetailCard(enemy: EnemyInfo) {
             // Tips
             InfoSection(
                 title = "💡 COUNTER STRATEGY",
-                titleColor = NeonCyan,
+                titleColor = NeonColors.Cyan,
                 content = enemy.tips
             )
         }
@@ -717,16 +655,16 @@ private fun ColumnScope.SynergyDetailCard(synergy: SynergyInfo) {
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        NeonDarkPanel,
-                        NeonDarkPanel.copy(alpha = 0.95f),
-                        NeonBackground
+                        NeonColors.DarkPanel,
+                        NeonColors.DarkPanel.copy(alpha = 0.95f),
+                        NeonColors.Background
                     )
                 )
             )
             .border(
                 width = 2.dp,
                 brush = Brush.verticalGradient(
-                    colors = listOf(NeonYellow.copy(alpha = 0.6f), NeonYellow.copy(alpha = 0.2f))
+                    colors = listOf(NeonColors.Yellow.copy(alpha = 0.6f), NeonColors.Yellow.copy(alpha = 0.2f))
                 ),
                 shape = RoundedCornerShape(16.dp)
             )
@@ -768,11 +706,11 @@ private fun ColumnScope.SynergyDetailCard(synergy: SynergyInfo) {
                     Text(
                         text = "⚡",
                         fontSize = 24.sp,
-                        color = NeonYellow.copy(alpha = pulseAlpha)
+                        color = NeonColors.Yellow.copy(alpha = pulseAlpha)
                     )
                     Text(
                         text = "+",
-                        color = NeonYellow.copy(alpha = 0.8f),
+                        color = NeonColors.Yellow.copy(alpha = 0.8f),
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -821,7 +759,7 @@ private fun ColumnScope.SynergyDetailCard(synergy: SynergyInfo) {
             // Synergy description (short)
             Text(
                 text = synergy.synergy.description,
-                color = NeonYellow.copy(alpha = 0.9f),
+                color = NeonColors.Yellow.copy(alpha = 0.9f),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
                 textAlign = TextAlign.Center,
@@ -833,7 +771,7 @@ private fun ColumnScope.SynergyDetailCard(synergy: SynergyInfo) {
             // Detailed effect section
             InfoSection(
                 title = "⚡ SYNERGY EFFECT",
-                titleColor = NeonYellow,
+                titleColor = NeonColors.Yellow,
                 content = synergy.detailedEffect
             )
 
@@ -842,7 +780,7 @@ private fun ColumnScope.SynergyDetailCard(synergy: SynergyInfo) {
             // Range indicator
             InfoSection(
                 title = "📍 ACTIVATION RANGE",
-                titleColor = NeonBlue,
+                titleColor = NeonColors.Blue,
                 content = "Towers must be placed within 2 grid cells of each other to activate this synergy."
             )
 
@@ -851,7 +789,7 @@ private fun ColumnScope.SynergyDetailCard(synergy: SynergyInfo) {
             // Tips section
             InfoSection(
                 title = "💡 TACTICAL TIP",
-                titleColor = NeonGreen,
+                titleColor = NeonColors.Green,
                 content = synergy.tips
             )
         }
@@ -1177,9 +1115,9 @@ private fun HeroDetailCard(hero: HeroInfo) {
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        NeonDarkPanel,
-                        NeonDarkPanel.copy(alpha = 0.95f),
-                        NeonBackground
+                        NeonColors.DarkPanel,
+                        NeonColors.DarkPanel.copy(alpha = 0.95f),
+                        NeonColors.Background
                     )
                 )
             )
@@ -1302,7 +1240,7 @@ private fun HeroDetailCard(hero: HeroInfo) {
             // Tips
             InfoSection(
                 title = "TIPS",
-                titleColor = NeonGreen,
+                titleColor = NeonColors.Green,
                 content = hero.tips
             )
 

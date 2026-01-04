@@ -5,10 +5,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -42,13 +39,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.msa.neontd.game.editor.CustomLevelData
 import com.msa.neontd.sharing.ShareManager
-
-// Neon color palette
-private val NeonBackground = Color(0xFF0A0A12)
-private val NeonDarkPanel = Color(0xFF0D0D18)
-private val NeonCyan = Color(0xFF00FFFF)
-private val NeonGreen = Color(0xFF00FF00)
-private val NeonMagenta = Color(0xFFFF00FF)
+import com.msa.neontd.ui.theme.NeonColors
+import com.msa.neontd.ui.theme.NeonScaffold
 
 /**
  * Screen for sharing a custom level via QR code.
@@ -89,55 +81,24 @@ fun ShareLevelScreen(
         isLoading = false
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(NeonBackground)
-    ) {
+    NeonScaffold(
+        title = "SHARE LEVEL",
+        titleColor = NeonColors.Magenta,
+        onBackClick = onBackClick
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
+                .padding(paddingValues)
+                .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(NeonCyan.copy(alpha = 0.15f))
-                        .clickable { onBackClick() }
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
-                ) {
-                    Text(
-                        text = "◄",
-                        color = NeonCyan,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Text(
-                    text = "SHARE LEVEL",
-                    color = NeonMagenta,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
             // Level name
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(NeonDarkPanel)
+                    .background(NeonColors.DarkPanel)
                     .padding(16.dp)
             ) {
                 Column {
@@ -163,8 +124,8 @@ fun ShareLevelScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
-                    .background(NeonDarkPanel)
-                    .border(2.dp, NeonCyan.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
+                    .background(NeonColors.DarkPanel)
+                    .border(2.dp, NeonColors.Cyan.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
                     .padding(20.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -174,13 +135,13 @@ fun ShareLevelScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             CircularProgressIndicator(
-                                color = NeonCyan,
+                                color = NeonColors.Cyan,
                                 modifier = Modifier.size(48.dp)
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
                                 text = "Generating QR Code...",
-                                color = NeonCyan,
+                                color = NeonColors.Cyan,
                                 fontSize = 14.sp
                             )
                         }
@@ -192,14 +153,14 @@ fun ShareLevelScreen(
                         ) {
                             Text(
                                 text = "!",
-                                color = NeonMagenta,
+                                color = NeonColors.Magenta,
                                 fontSize = 48.sp,
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
                                 text = errorMessage ?: "Unknown error",
-                                color = NeonMagenta,
+                                color = NeonColors.Magenta,
                                 fontSize = 14.sp,
                                 textAlign = TextAlign.Center
                             )
@@ -221,7 +182,7 @@ fun ShareLevelScreen(
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
                                 text = "QR Size: $qrSizeCategory",
-                                color = NeonCyan.copy(alpha = 0.6f),
+                                color = NeonColors.Cyan.copy(alpha = 0.6f),
                                 fontSize = 12.sp
                             )
                         }
@@ -236,13 +197,13 @@ fun ShareLevelScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(NeonDarkPanel)
+                    .background(NeonColors.DarkPanel)
                     .padding(16.dp)
             ) {
                 Column {
                     Text(
                         text = "HOW TO SHARE",
-                        color = NeonCyan.copy(alpha = 0.7f),
+                        color = NeonColors.Cyan.copy(alpha = 0.7f),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -268,8 +229,8 @@ fun ShareLevelScreen(
                     .fillMaxWidth()
                     .height(56.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = NeonGreen.copy(alpha = 0.3f),
-                    contentColor = NeonGreen,
+                    containerColor = NeonColors.Green.copy(alpha = 0.3f),
+                    contentColor = NeonColors.Green,
                     disabledContainerColor = Color.Gray.copy(alpha = 0.2f),
                     disabledContentColor = Color.Gray
                 ),
@@ -294,7 +255,7 @@ fun ShareResultDialog(
     message: String,
     onDismiss: () -> Unit
 ) {
-    val color = if (isSuccess) NeonGreen else NeonMagenta
+    val color = if (isSuccess) NeonColors.Green else NeonColors.Magenta
 
     Box(
         modifier = Modifier
@@ -307,7 +268,7 @@ fun ShareResultDialog(
             modifier = Modifier
                 .fillMaxWidth(0.85f)
                 .clip(RoundedCornerShape(16.dp))
-                .background(NeonDarkPanel)
+                .background(NeonColors.DarkPanel)
                 .border(2.dp, color.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
                 .clickable { /* Prevent dismiss */ }
                 .padding(24.dp)

@@ -11,11 +11,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -36,7 +34,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.msa.neontd.game.heroes.HeroDefinition
@@ -46,15 +43,8 @@ import com.msa.neontd.game.heroes.HeroPassiveType
 import com.msa.neontd.game.heroes.HeroProgress
 import com.msa.neontd.game.heroes.HeroSystemData
 import com.msa.neontd.game.heroes.HeroUnlockRequirement
-
-// Neon color palette
-private val NeonBackground = Color(0xFF0A0A12)
-private val NeonDarkPanel = Color(0xFF0D0D18)
-private val NeonCyan = Color(0xFF00FFFF)
-private val NeonMagenta = Color(0xFFFF00FF)
-private val NeonYellow = Color(0xFFFFFF00)
-private val NeonGreen = Color(0xFF00FF00)
-private val NeonOrange = Color(0xFFFF8800)
+import com.msa.neontd.ui.theme.NeonColors
+import com.msa.neontd.ui.theme.NeonScaffold
 
 /**
  * Hero selection screen with neon-themed UI.
@@ -74,28 +64,16 @@ fun HeroSelectionScreen(
 ) {
     var selectedHero by remember { mutableStateOf(heroData.getSelectedHero() ?: HeroId.COMMANDER_VOLT) }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(NeonBackground)
-    ) {
+    NeonScaffold(
+        title = "SELECT HERO",
+        titleColor = NeonColors.Cyan,
+        onBackClick = onBackClick
+    ) { paddingValues ->
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
+                .padding(paddingValues)
+                .padding(horizontal = 16.dp)
         ) {
-            // Title
-            Text(
-                text = "SELECT HERO",
-                color = NeonCyan,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
             // Hero list
             LazyColumn(
                 modifier = Modifier.weight(1f),
@@ -130,8 +108,8 @@ fun HeroSelectionScreen(
                     .fillMaxWidth()
                     .height(56.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = NeonGreen.copy(alpha = 0.25f),
-                    contentColor = NeonGreen
+                    containerColor = NeonColors.Green.copy(alpha = 0.25f),
+                    contentColor = NeonColors.Green
                 ),
                 shape = RoundedCornerShape(8.dp)
             ) {
@@ -143,26 +121,7 @@ fun HeroSelectionScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Back button
-            Button(
-                onClick = onBackClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = NeonCyan.copy(alpha = 0.15f),
-                    contentColor = NeonCyan
-                ),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text(
-                    text = "< BACK TO LEVELS",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
@@ -204,7 +163,7 @@ private fun HeroCard(
             .scale(scale)
             .alpha(alpha)
             .clip(RoundedCornerShape(12.dp))
-            .background(NeonDarkPanel)
+            .background(NeonColors.DarkPanel)
             .border(2.dp, borderColor, RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
             .padding(16.dp)
@@ -391,7 +350,7 @@ private fun PassiveBonusesList(
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "ACTIVE",
-                        color = NeonGreen,
+                        color = NeonColors.Green,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold
                     )

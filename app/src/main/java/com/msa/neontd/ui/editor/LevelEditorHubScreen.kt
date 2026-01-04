@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -36,6 +35,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.msa.neontd.game.editor.CustomLevelData
 import com.msa.neontd.game.editor.CustomLevelRepository
+import com.msa.neontd.ui.theme.NeonColors
+import com.msa.neontd.ui.theme.NeonScaffold
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -61,141 +62,112 @@ fun LevelEditorHubScreen(
         levels = repository.getAllLevels()
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(NeonBackground)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-        ) {
-            // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+    NeonScaffold(
+        title = "LEVEL EDITOR",
+        titleColor = NeonColors.Green,
+        onBackClick = onBackClick
+    ) { paddingValues ->
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(horizontal = 16.dp)
             ) {
-                Box(
+                // Create new level button
+                Button(
+                    onClick = onNewLevel,
                     modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(NeonCyan.copy(alpha = 0.15f))
-                        .clickable { onBackClick() }
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .fillMaxWidth()
+                        .height(60.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = NeonColors.Green.copy(alpha = 0.2f),
+                        contentColor = NeonColors.Green
+                    ),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
                     Text(
-                        text = "◄",
-                        color = NeonCyan,
+                        text = "+ CREATE NEW LEVEL",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
 
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                Text(
-                    text = "LEVEL EDITOR",
-                    color = NeonGreen,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Create new level button
-            Button(
-                onClick = onNewLevel,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(60.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = NeonGreen.copy(alpha = 0.2f),
-                    contentColor = NeonGreen
-                ),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text(
-                    text = "+ CREATE NEW LEVEL",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // My levels header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "MY LEVELS",
-                    color = NeonCyan.copy(alpha = 0.7f),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "${levels.size}/${CustomLevelRepository.MAX_CUSTOM_LEVELS}",
-                    color = if (levels.size >= CustomLevelRepository.MAX_CUSTOM_LEVELS) NeonOrange else NeonCyan.copy(alpha = 0.5f),
-                    fontSize = 12.sp
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Level list
-            if (levels.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.Center
+                // My levels header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "No custom levels yet",
-                            color = Color.White.copy(alpha = 0.5f),
-                            fontSize = 16.sp
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Tap 'Create New Level' to get started!",
-                            color = NeonGreen.copy(alpha = 0.5f),
-                            fontSize = 14.sp
-                        )
-                    }
+                    Text(
+                        text = "MY LEVELS",
+                        color = NeonColors.Cyan.copy(alpha = 0.7f),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "${levels.size}/${CustomLevelRepository.MAX_CUSTOM_LEVELS}",
+                        color = if (levels.size >= CustomLevelRepository.MAX_CUSTOM_LEVELS) NeonColors.Orange else NeonColors.Cyan.copy(alpha = 0.5f),
+                        fontSize = 12.sp
+                    )
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(levels, key = { it.id }) { level ->
-                        CustomLevelCard(
-                            level = level,
-                            onEdit = { onEditLevel(level) },
-                            onPlay = { onPlayLevel(level) },
-                            onShare = { onShareLevel(level) },
-                            onDelete = { showDeleteDialog = level }
-                        )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Level list
+                if (levels.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "No custom levels yet",
+                                color = Color.White.copy(alpha = 0.5f),
+                                fontSize = 16.sp
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Tap 'Create New Level' to get started!",
+                                color = NeonColors.Green.copy(alpha = 0.5f),
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(levels, key = { it.id }) { level ->
+                            CustomLevelCard(
+                                level = level,
+                                onEdit = { onEditLevel(level) },
+                                onPlay = { onPlayLevel(level) },
+                                onShare = { onShareLevel(level) },
+                                onDelete = { showDeleteDialog = level }
+                            )
+                        }
                     }
                 }
             }
-        }
 
-        // Delete confirmation dialog
-        showDeleteDialog?.let { level ->
-            DeleteConfirmationDialog(
-                levelName = level.name,
-                onConfirm = {
-                    repository.deleteLevel(level.id)
-                    levels = repository.getAllLevels()
-                    showDeleteDialog = null
-                },
-                onDismiss = { showDeleteDialog = null }
-            )
+            // Delete confirmation dialog
+            showDeleteDialog?.let { level ->
+                DeleteConfirmationDialog(
+                    levelName = level.name,
+                    onConfirm = {
+                        repository.deleteLevel(level.id)
+                        levels = repository.getAllLevels()
+                        showDeleteDialog = null
+                    },
+                    onDismiss = { showDeleteDialog = null }
+                )
+            }
         }
     }
 }
@@ -216,8 +188,8 @@ private fun CustomLevelCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(NeonDarkPanel)
-            .border(1.dp, NeonGreen.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+            .background(NeonColors.DarkPanel)
+            .border(1.dp, NeonColors.Green.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
             .padding(12.dp)
     ) {
         Column {
@@ -277,14 +249,14 @@ private fun CustomLevelCard(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(NeonCyan.copy(alpha = 0.15f))
+                        .background(NeonColors.Cyan.copy(alpha = 0.15f))
                         .clickable { onEdit() }
                         .padding(vertical = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "EDIT",
-                        color = NeonCyan,
+                        color = NeonColors.Cyan,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -295,14 +267,14 @@ private fun CustomLevelCard(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(NeonGreen.copy(alpha = 0.15f))
+                        .background(NeonColors.Green.copy(alpha = 0.15f))
                         .clickable { onPlay() }
                         .padding(vertical = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "PLAY",
-                        color = NeonGreen,
+                        color = NeonColors.Green,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -313,14 +285,14 @@ private fun CustomLevelCard(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(NeonMagenta.copy(alpha = 0.15f))
+                        .background(NeonColors.Magenta.copy(alpha = 0.15f))
                         .clickable { onShare() }
                         .padding(vertical = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "SHARE",
-                        color = NeonMagenta,
+                        color = NeonColors.Magenta,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -330,14 +302,14 @@ private fun CustomLevelCard(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(NeonRed.copy(alpha = 0.15f))
+                        .background(NeonColors.Red.copy(alpha = 0.15f))
                         .clickable { onDelete() }
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "✕",
-                        color = NeonRed,
+                        color = NeonColors.Red,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -364,15 +336,15 @@ private fun DeleteConfirmationDialog(
             modifier = Modifier
                 .fillMaxWidth(0.85f)
                 .clip(RoundedCornerShape(16.dp))
-                .background(NeonDarkPanel)
-                .border(2.dp, NeonRed.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
+                .background(NeonColors.DarkPanel)
+                .border(2.dp, NeonColors.Red.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
                 .clickable { /* Prevent dismiss */ }
                 .padding(20.dp)
         ) {
             Column {
                 Text(
                     text = "DELETE LEVEL?",
-                    color = NeonRed,
+                    color = NeonColors.Red,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -406,11 +378,11 @@ private fun DeleteConfirmationDialog(
                         onClick = onConfirm,
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = NeonRed.copy(alpha = 0.3f)
+                            containerColor = NeonColors.Red.copy(alpha = 0.3f)
                         ),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("DELETE", color = NeonRed, fontWeight = FontWeight.Bold)
+                        Text("DELETE", color = NeonColors.Red, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -420,9 +392,9 @@ private fun DeleteConfirmationDialog(
 
 private fun getDifficultyColor(difficulty: com.msa.neontd.game.level.LevelDifficulty): Color {
     return when (difficulty) {
-        com.msa.neontd.game.level.LevelDifficulty.EASY -> NeonGreen
-        com.msa.neontd.game.level.LevelDifficulty.NORMAL -> NeonCyan
-        com.msa.neontd.game.level.LevelDifficulty.HARD -> NeonOrange
-        com.msa.neontd.game.level.LevelDifficulty.EXTREME -> NeonMagenta
+        com.msa.neontd.game.level.LevelDifficulty.EASY -> NeonColors.Green
+        com.msa.neontd.game.level.LevelDifficulty.NORMAL -> NeonColors.Cyan
+        com.msa.neontd.game.level.LevelDifficulty.HARD -> NeonColors.Orange
+        com.msa.neontd.game.level.LevelDifficulty.EXTREME -> NeonColors.Magenta
     }
 }

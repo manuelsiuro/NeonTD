@@ -35,6 +35,7 @@ import com.msa.neontd.game.editor.CustomCellType
 import com.msa.neontd.game.editor.CustomLevelData
 import com.msa.neontd.game.editor.LevelValidator
 import com.msa.neontd.game.editor.ValidationError
+import com.msa.neontd.ui.theme.NeonColors
 import kotlin.math.min
 
 /**
@@ -67,13 +68,13 @@ fun PreviewTab(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
-                .background(NeonDarkPanel)
+                .background(NeonColors.DarkPanel)
                 .padding(12.dp)
         ) {
             Column {
                 Text(
                     text = "MAP PREVIEW",
-                    color = NeonCyan.copy(alpha = 0.7f),
+                    color = NeonColors.Cyan.copy(alpha = 0.7f),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -108,8 +109,8 @@ fun PreviewTab(
                 .fillMaxWidth()
                 .height(56.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (validationResult.isValid) NeonGreen.copy(alpha = 0.3f) else Color.Gray.copy(alpha = 0.2f),
-                contentColor = if (validationResult.isValid) NeonGreen else Color.Gray,
+                containerColor = if (validationResult.isValid) NeonColors.Green.copy(alpha = 0.3f) else Color.Gray.copy(alpha = 0.2f),
+                contentColor = if (validationResult.isValid) NeonColors.Green else Color.Gray,
                 disabledContainerColor = Color.Gray.copy(alpha = 0.2f),
                 disabledContentColor = Color.Gray
             ),
@@ -129,7 +130,7 @@ private fun ValidationStatusCard(
     isValid: Boolean,
     errors: List<ValidationError>
 ) {
-    val color = if (isValid) NeonGreen else NeonRed
+    val color = if (isValid) NeonColors.Green else NeonColors.Red
 
     Box(
         modifier = Modifier
@@ -202,10 +203,10 @@ private fun MiniMapPreview(
                 val cellType = cells[y][x]
                 val color = when (cellType) {
                     CustomCellType.EMPTY -> Color(0xFF1A1A2E)
-                    CustomCellType.PATH -> NeonCyan.copy(alpha = 0.8f)
+                    CustomCellType.PATH -> NeonColors.Cyan.copy(alpha = 0.8f)
                     CustomCellType.BLOCKED -> Color(0xFF4A4A5A)
-                    CustomCellType.SPAWN -> NeonGreen.copy(alpha = 0.9f)
-                    CustomCellType.EXIT -> NeonRed.copy(alpha = 0.9f)
+                    CustomCellType.SPAWN -> NeonColors.Green.copy(alpha = 0.9f)
+                    CustomCellType.EXIT -> NeonColors.Red.copy(alpha = 0.9f)
                 }
 
                 val drawY = mapData.height - 1 - y
@@ -234,13 +235,13 @@ private fun LevelStatsSummary(data: CustomLevelData) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(NeonDarkPanel)
+            .background(NeonColors.DarkPanel)
             .padding(12.dp)
     ) {
         Column {
             Text(
                 text = "LEVEL STATS",
-                color = NeonCyan.copy(alpha = 0.7f),
+                color = NeonColors.Cyan.copy(alpha = 0.7f),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -250,10 +251,10 @@ private fun LevelStatsSummary(data: CustomLevelData) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                StatBox("SIZE", "${data.map.width}×${data.map.height}", NeonCyan)
-                StatBox("PATH", "$pathCount", NeonCyan)
-                StatBox("SPAWNS", "$spawnCount", NeonGreen)
-                StatBox("EXITS", "$exitCount", NeonRed)
+                StatBox("SIZE", "${data.map.width}×${data.map.height}", NeonColors.Cyan)
+                StatBox("PATH", "$pathCount", NeonColors.Cyan)
+                StatBox("SPAWNS", "$spawnCount", NeonColors.Green)
+                StatBox("EXITS", "$exitCount", NeonColors.Red)
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -262,10 +263,10 @@ private fun LevelStatsSummary(data: CustomLevelData) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                StatBox("WAVES", "${data.waves.size}", NeonMagenta)
-                StatBox("ENEMIES", "$totalEnemies", NeonOrange)
-                StatBox("GOLD", "${data.settings.startingGold}", NeonYellow)
-                StatBox("HEALTH", "${data.settings.startingHealth}", NeonGreen)
+                StatBox("WAVES", "${data.waves.size}", NeonColors.Magenta)
+                StatBox("ENEMIES", "$totalEnemies", NeonColors.Orange)
+                StatBox("GOLD", "${data.settings.startingGold}", NeonColors.Yellow)
+                StatBox("HEALTH", "${data.settings.startingHealth}", NeonColors.Green)
             }
         }
     }
@@ -299,13 +300,13 @@ private fun WaveBreakdownCard(data: CustomLevelData) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(NeonDarkPanel)
+            .background(NeonColors.DarkPanel)
             .padding(12.dp)
     ) {
         Column {
             Text(
                 text = "WAVE BREAKDOWN",
-                color = NeonMagenta.copy(alpha = 0.7f),
+                color = NeonColors.Magenta.copy(alpha = 0.7f),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -326,7 +327,7 @@ private fun WaveBreakdownCard(data: CustomLevelData) {
                 ) {
                     Text(
                         text = "Wave ${wave.waveNumber}:",
-                        color = NeonMagenta,
+                        color = NeonColors.Magenta,
                         fontSize = 12.sp
                     )
                     Text(
@@ -347,7 +348,7 @@ private fun WaveBreakdownCard(data: CustomLevelData) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "... and ${data.waves.size - 5} more waves",
-                    color = NeonMagenta.copy(alpha = 0.5f),
+                    color = NeonColors.Magenta.copy(alpha = 0.5f),
                     fontSize = 11.sp
                 )
             }

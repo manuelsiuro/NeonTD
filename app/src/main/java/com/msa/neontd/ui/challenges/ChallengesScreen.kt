@@ -21,11 +21,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -57,27 +55,16 @@ import com.msa.neontd.game.challenges.ChallengeRepository
 import com.msa.neontd.game.challenges.ChallengeType
 import com.msa.neontd.game.challenges.EndlessHighScore
 import com.msa.neontd.game.level.MapId
+import com.msa.neontd.ui.theme.NeonColors
+import com.msa.neontd.ui.theme.NeonScaffold
 import kotlinx.coroutines.delay
-
-// Neon color palette
-private val NeonBackground = Color(0xFF0A0A12)
-private val NeonDarkPanel = Color(0xFF0D0D18)
-private val NeonCyan = Color(0xFF00FFFF)
-private val NeonMagenta = Color(0xFFFF00FF)
-private val NeonYellow = Color(0xFFFFFF00)
-private val NeonGreen = Color(0xFF00FF00)
-private val NeonOrange = Color(0xFFFF8800)
-private val NeonPurple = Color(0xFF9900FF)
-private val NeonBlue = Color(0xFF3388FF)
-private val NeonRed = Color(0xFFFF3366)
-private val NeonGold = Color(0xFFFFD700)
 
 // Tab colors
 private fun getTabColor(type: ChallengeType): Color = when (type) {
-    ChallengeType.DAILY -> NeonCyan
-    ChallengeType.WEEKLY -> NeonPurple
-    ChallengeType.ENDLESS -> NeonMagenta
-    ChallengeType.BOSS_RUSH -> NeonRed
+    ChallengeType.DAILY -> NeonColors.Cyan
+    ChallengeType.WEEKLY -> NeonColors.PurpleLight
+    ChallengeType.ENDLESS -> NeonColors.Magenta
+    ChallengeType.BOSS_RUSH -> NeonColors.Red
 }
 
 enum class ChallengeTab {
@@ -117,18 +104,19 @@ fun ChallengesScreen(
     val dailyStreak = repository.getDailyStreak()
     val totalCompleted = challengeData.totalChallengesCompleted
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(NeonBackground)
-    ) {
+    NeonScaffold(
+        title = "CHALLENGES",
+        titleColor = NeonColors.Orange,
+        onBackClick = onBackClick
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
+                .padding(paddingValues)
+                .padding(horizontal = 16.dp)
         ) {
-            // Title with stats
-            ChallengesTitle(dailyStreak, totalCompleted)
+            // Stats row (streak and completed count)
+            ChallengesStats(dailyStreak, totalCompleted)
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -183,63 +171,30 @@ fun ChallengesScreen(
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Back button
-            Button(
-                onClick = onBackClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = NeonCyan.copy(alpha = 0.15f),
-                    contentColor = NeonCyan
-                ),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text(
-                    text = "< BACK TO MENU",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
         }
     }
 }
 
 @Composable
-private fun ChallengesTitle(dailyStreak: Int, totalCompleted: Int) {
-    Column(
+private fun ChallengesStats(dailyStreak: Int, totalCompleted: Int) {
+    Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "CHALLENGES",
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            color = NeonOrange,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Row(
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (dailyStreak > 0) {
-                Text(
-                    text = "$dailyStreak Day Streak",
-                    fontSize = 14.sp,
-                    color = NeonOrange.copy(alpha = 0.9f)
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-            }
+        if (dailyStreak > 0) {
             Text(
-                text = "$totalCompleted Completed",
+                text = "$dailyStreak Day Streak",
                 fontSize = 14.sp,
-                color = Color.White.copy(alpha = 0.7f)
+                color = NeonColors.Orange.copy(alpha = 0.9f)
             )
+            Spacer(modifier = Modifier.width(16.dp))
         }
+        Text(
+            text = "$totalCompleted Completed",
+            fontSize = 14.sp,
+            color = Color.White.copy(alpha = 0.7f)
+        )
     }
 }
 
@@ -252,17 +207,17 @@ private fun ChallengeTabRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .background(NeonDarkPanel)
+            .background(NeonColors.DarkPanel)
             .padding(4.dp),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
         ChallengeTab.entries.forEach { tab ->
             val isSelected = selectedTab == tab
             val tabColor = when (tab) {
-                ChallengeTab.DAILY -> NeonCyan
-                ChallengeTab.WEEKLY -> NeonPurple
-                ChallengeTab.ENDLESS -> NeonMagenta
-                ChallengeTab.BOSS_RUSH -> NeonRed
+                ChallengeTab.DAILY -> NeonColors.Cyan
+                ChallengeTab.WEEKLY -> NeonColors.PurpleLight
+                ChallengeTab.ENDLESS -> NeonColors.Magenta
+                ChallengeTab.BOSS_RUSH -> NeonColors.Red
             }
             val animatedBgAlpha by animateFloatAsState(
                 targetValue = if (isSelected) 0.25f else 0f,
@@ -310,7 +265,7 @@ private fun DailyContent(
         isCompleted = isCompleted,
         bestScore = bestScore,
         attempts = attempts,
-        accentColor = NeonCyan,
+        accentColor = NeonColors.Cyan,
         onPlay = onPlay
     )
 }
@@ -330,7 +285,7 @@ private fun WeeklyContent(
         isCompleted = isCompleted,
         bestScore = bestScore,
         attempts = attempts,
-        accentColor = NeonPurple,
+        accentColor = NeonColors.PurpleLight,
         onPlay = onPlay
     )
 }
@@ -352,8 +307,8 @@ private fun ChallengeCard(
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        NeonDarkPanel,
-                        NeonDarkPanel.copy(alpha = 0.8f)
+                        NeonColors.DarkPanel,
+                        NeonColors.DarkPanel.copy(alpha = 0.8f)
                     )
                 )
             )
@@ -405,7 +360,7 @@ private fun ChallengeCard(
                 text = "MODIFIERS:",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
-                color = NeonYellow
+                color = NeonColors.Yellow
             )
             Spacer(modifier = Modifier.height(4.dp))
             challenge.modifiers.forEach { modifier ->
@@ -414,7 +369,7 @@ private fun ChallengeCard(
                 Text(
                     text = "• $description",
                     fontSize = 12.sp,
-                    color = if (isNegative) NeonRed.copy(alpha = 0.9f) else NeonGreen.copy(alpha = 0.9f)
+                    color = if (isNegative) NeonColors.Red.copy(alpha = 0.9f) else NeonColors.Green.copy(alpha = 0.9f)
                 )
             }
         }
@@ -436,7 +391,7 @@ private fun ChallengeCard(
                     text = if (bestScore > 0) bestScore.toString() else "-",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = NeonGold
+                    color = NeonColors.Gold
                 )
             }
             Column(horizontalAlignment = Alignment.End) {
@@ -463,8 +418,8 @@ private fun ChallengeCard(
                 .fillMaxWidth()
                 .height(48.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (isCompleted) NeonGreen.copy(alpha = 0.2f) else accentColor.copy(alpha = 0.2f),
-                contentColor = if (isCompleted) NeonGreen else accentColor
+                containerColor = if (isCompleted) NeonColors.Green.copy(alpha = 0.2f) else accentColor.copy(alpha = 0.2f),
+                contentColor = if (isCompleted) NeonColors.Green else accentColor
             ),
             shape = RoundedCornerShape(8.dp)
         ) {
@@ -517,7 +472,7 @@ private fun EndlessContent(
                 text = "SELECT MAP",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
-                color = NeonMagenta
+                color = NeonColors.Magenta
             )
             Spacer(modifier = Modifier.height(8.dp))
         }
@@ -537,12 +492,12 @@ private fun EndlessContent(
                             .weight(1f)
                             .clip(RoundedCornerShape(8.dp))
                             .background(
-                                if (isSelected) NeonMagenta.copy(alpha = 0.2f)
-                                else NeonDarkPanel
+                                if (isSelected) NeonColors.Magenta.copy(alpha = 0.2f)
+                                else NeonColors.DarkPanel
                             )
                             .border(
                                 width = if (isSelected) 2.dp else 1.dp,
-                                color = if (isSelected) NeonMagenta else NeonMagenta.copy(alpha = 0.2f),
+                                color = if (isSelected) NeonColors.Magenta else NeonColors.Magenta.copy(alpha = 0.2f),
                                 shape = RoundedCornerShape(8.dp)
                             )
                             .clickable { selectedMapId = mapId }
@@ -554,7 +509,7 @@ private fun EndlessContent(
                                 text = mapId.name.replace('_', ' '),
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (isSelected) NeonMagenta else Color.White.copy(alpha = 0.8f),
+                                color = if (isSelected) NeonColors.Magenta else Color.White.copy(alpha = 0.8f),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 textAlign = TextAlign.Center
@@ -563,7 +518,7 @@ private fun EndlessContent(
                                 Text(
                                     text = "W${bestForMap.wave}",
                                     fontSize = 9.sp,
-                                    color = NeonGold.copy(alpha = 0.8f)
+                                    color = NeonColors.Gold.copy(alpha = 0.8f)
                                 )
                             }
                         }
@@ -584,10 +539,10 @@ private fun EndlessContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(NeonDarkPanel)
+                    .background(NeonColors.DarkPanel)
                     .border(
                         width = 1.dp,
-                        color = NeonMagenta.copy(alpha = 0.3f),
+                        color = NeonColors.Magenta.copy(alpha = 0.3f),
                         shape = RoundedCornerShape(12.dp)
                     )
                     .padding(16.dp)
@@ -596,7 +551,7 @@ private fun EndlessContent(
                     text = "ENDLESS MODE",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = NeonMagenta
+                    color = NeonColors.Magenta
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -616,8 +571,8 @@ private fun EndlessContent(
                         .fillMaxWidth()
                         .height(48.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = NeonMagenta.copy(alpha = 0.2f),
-                        contentColor = NeonMagenta
+                        containerColor = NeonColors.Magenta.copy(alpha = 0.2f),
+                        contentColor = NeonColors.Magenta
                     ),
                     shape = RoundedCornerShape(8.dp)
                 ) {
@@ -638,7 +593,7 @@ private fun EndlessContent(
                     text = "TOP SCORES",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = NeonGold
+                    color = NeonColors.Gold
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
@@ -656,7 +611,7 @@ private fun HighScoreRow(score: EndlessHighScore) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .background(NeonDarkPanel.copy(alpha = 0.7f))
+            .background(NeonColors.DarkPanel.copy(alpha = 0.7f))
             .padding(12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -671,14 +626,14 @@ private fun HighScoreRow(score: EndlessHighScore) {
             Text(
                 text = "Wave ${score.wave}",
                 fontSize = 11.sp,
-                color = NeonMagenta.copy(alpha = 0.8f)
+                color = NeonColors.Magenta.copy(alpha = 0.8f)
             )
         }
         Text(
             text = score.score.toString(),
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
-            color = NeonGold
+            color = NeonColors.Gold
         )
     }
 }
@@ -702,7 +657,7 @@ private fun BossRushContent(
                 text = "BOSS RUSH",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = NeonRed
+                color = NeonColors.Red
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
@@ -719,7 +674,7 @@ private fun BossRushContent(
                 text = "SELECT DIFFICULTY",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
-                color = NeonOrange
+                color = NeonColors.Orange
             )
             Spacer(modifier = Modifier.height(8.dp))
         }
@@ -727,9 +682,9 @@ private fun BossRushContent(
         items(tiers) { (name, description, index) ->
             val isSelected = selectedTierIndex == index
             val tierColor = when (index) {
-                0 -> NeonGreen
-                1 -> NeonOrange
-                else -> NeonRed
+                0 -> NeonColors.Green
+                1 -> NeonColors.Orange
+                else -> NeonColors.Red
             }
 
             Box(
@@ -738,7 +693,7 @@ private fun BossRushContent(
                     .clip(RoundedCornerShape(8.dp))
                     .background(
                         if (isSelected) tierColor.copy(alpha = 0.2f)
-                        else NeonDarkPanel
+                        else NeonColors.DarkPanel
                     )
                     .border(
                         width = if (isSelected) 2.dp else 1.dp,
@@ -771,7 +726,7 @@ private fun BossRushContent(
                 text = "SELECT MAP",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
-                color = NeonRed
+                color = NeonColors.Red
             )
             Spacer(modifier = Modifier.height(8.dp))
         }
@@ -792,12 +747,12 @@ private fun BossRushContent(
                             .weight(1f)
                             .clip(RoundedCornerShape(8.dp))
                             .background(
-                                if (isSelected) NeonRed.copy(alpha = 0.2f)
-                                else NeonDarkPanel
+                                if (isSelected) NeonColors.Red.copy(alpha = 0.2f)
+                                else NeonColors.DarkPanel
                             )
                             .border(
                                 width = if (isSelected) 2.dp else 1.dp,
-                                color = if (isSelected) NeonRed else NeonRed.copy(alpha = 0.2f),
+                                color = if (isSelected) NeonColors.Red else NeonColors.Red.copy(alpha = 0.2f),
                                 shape = RoundedCornerShape(8.dp)
                             )
                             .clickable { selectedMapId = mapId }
@@ -809,7 +764,7 @@ private fun BossRushContent(
                                 text = mapId.name.replace('_', ' '),
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (isSelected) NeonRed else Color.White.copy(alpha = 0.8f),
+                                color = if (isSelected) NeonColors.Red else Color.White.copy(alpha = 0.8f),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 textAlign = TextAlign.Center
@@ -818,7 +773,7 @@ private fun BossRushContent(
                                 Text(
                                     text = bestScore.toString(),
                                     fontSize = 9.sp,
-                                    color = NeonGold.copy(alpha = 0.8f)
+                                    color = NeonColors.Gold.copy(alpha = 0.8f)
                                 )
                             }
                         }
@@ -845,8 +800,8 @@ private fun BossRushContent(
                     .fillMaxWidth()
                     .height(48.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isCompleted) NeonGreen.copy(alpha = 0.2f) else NeonRed.copy(alpha = 0.2f),
-                    contentColor = if (isCompleted) NeonGreen else NeonRed
+                    containerColor = if (isCompleted) NeonColors.Green.copy(alpha = 0.2f) else NeonColors.Red.copy(alpha = 0.2f),
+                    contentColor = if (isCompleted) NeonColors.Green else NeonColors.Red
                 ),
                 shape = RoundedCornerShape(8.dp)
             ) {
