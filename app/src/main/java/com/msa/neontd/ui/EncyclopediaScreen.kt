@@ -30,6 +30,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -131,44 +135,36 @@ fun EncyclopediaScreen(onBackClick: () -> Unit) {
     }
 }
 
+private data class TabData(
+    val text: String,
+    val count: Int,
+    val color: Color,
+    val index: Int
+)
+
 @Composable
 private fun TabRow(selectedTab: Int, onTabSelected: (Int) -> Unit) {
-    Row(
+    val tabs = listOf(
+        TabData("TOWERS", Encyclopedia.towers.size, NeonColors.Cyan, 0),
+        TabData("ENEMIES", Encyclopedia.enemies.size, NeonColors.Magenta, 1),
+        TabData("SYNERGIES", Encyclopedia.synergies.size, NeonColors.Yellow, 2),
+        TabData("HEROES", Encyclopedia.heroes.size, NeonColors.Orange, 3)
+    )
+
+    LazyRow(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(horizontal = 4.dp)
     ) {
-        TabButton(
-            text = "TOWERS",
-            count = Encyclopedia.towers.size,
-            isSelected = selectedTab == 0,
-            color = NeonColors.Cyan,
-            modifier = Modifier.weight(1f),
-            onClick = { onTabSelected(0) }
-        )
-        TabButton(
-            text = "ENEMIES",
-            count = Encyclopedia.enemies.size,
-            isSelected = selectedTab == 1,
-            color = NeonColors.Magenta,
-            modifier = Modifier.weight(1f),
-            onClick = { onTabSelected(1) }
-        )
-        TabButton(
-            text = "SYNERGIES",
-            count = Encyclopedia.synergies.size,
-            isSelected = selectedTab == 2,
-            color = NeonColors.Yellow,
-            modifier = Modifier.weight(1f),
-            onClick = { onTabSelected(2) }
-        )
-        TabButton(
-            text = "HEROES",
-            count = Encyclopedia.heroes.size,
-            isSelected = selectedTab == 3,
-            color = NeonColors.Orange,
-            modifier = Modifier.weight(1f),
-            onClick = { onTabSelected(3) }
-        )
+        items(tabs) { tab ->
+            TabButton(
+                text = tab.text,
+                count = tab.count,
+                isSelected = selectedTab == tab.index,
+                color = tab.color,
+                onClick = { onTabSelected(tab.index) }
+            )
+        }
     }
 }
 
@@ -178,7 +174,6 @@ private fun TabButton(
     count: Int,
     isSelected: Boolean,
     color: Color,
-    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     val backgroundColor by animateColorAsState(
@@ -191,12 +186,14 @@ private fun TabButton(
     )
 
     Box(
-        modifier = modifier
+        modifier = Modifier
+            .widthIn(min = 100.dp)
             .height(48.dp)
             .clip(RoundedCornerShape(8.dp))
             .background(backgroundColor)
             .border(2.dp, borderColor, RoundedCornerShape(8.dp))
-            .clickable(onClick = onClick),
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp),
         contentAlignment = Alignment.Center
     ) {
         Row(
@@ -206,8 +203,9 @@ private fun TabButton(
             Text(
                 text = text,
                 color = if (isSelected) color else color.copy(alpha = 0.5f),
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
             )
             Spacer(modifier = Modifier.width(6.dp))
             Box(
