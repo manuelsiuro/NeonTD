@@ -104,11 +104,6 @@ class MainActivity : ComponentActivity() {
         // Initialize prestige repository
         prestigeRepository = PrestigeRepository(this)
 
-        // DEV MODE: Optionally unlock all levels on launch (DEBUG builds only)
-        if (isDevModeEnabled()) {
-            progressionRepository.unlockAllLevels()
-        }
-
         setContent {
             NeonTDTheme {
                 var navigation by remember { mutableStateOf(MainMenuNavigation.MENU) }
@@ -173,6 +168,9 @@ class MainActivity : ComponentActivity() {
                             },
                             onTowerSkinsClick = {
                                 navigation = MainMenuNavigation.TOWER_SKINS
+                            },
+                            onResetProgression = {
+                                progression = progressionRepository.resetProgression()
                             }
                         )
                     }

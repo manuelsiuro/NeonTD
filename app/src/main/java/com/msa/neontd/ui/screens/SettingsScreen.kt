@@ -48,7 +48,8 @@ private const val KEY_DEV_MODE_ENABLED = "dev_mode_enabled"
 @Composable
 fun SettingsScreen(
     onBackClick: () -> Unit,
-    onTowerSkinsClick: () -> Unit = {}
+    onTowerSkinsClick: () -> Unit = {},
+    onResetProgression: () -> Unit = {}
 ) {
     val context = LocalContext.current
 
@@ -150,6 +151,25 @@ fun SettingsScreen(
 
                 Text(
                     text = "⚠️ Unlocks all levels (testing only)",
+                    fontSize = 12.sp,
+                    color = NeonColors.Red.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(start = 4.dp, top = 4.dp)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                NeonButton(
+                    text = "RESET PROGRESSION",
+                    onClick = {
+                        AudioEventHandler.onButtonClick()
+                        onResetProgression()
+                    },
+                    color = NeonColors.Red,
+                    widthFraction = 0.85f
+                )
+
+                Text(
+                    text = "⚠️ Clears all progress, stars, and scores",
                     fontSize = 12.sp,
                     color = NeonColors.Red.copy(alpha = 0.7f),
                     modifier = Modifier.padding(start = 4.dp, top = 4.dp)
