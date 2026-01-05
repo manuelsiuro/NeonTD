@@ -18,3 +18,6 @@ local.properties
 *.aab
 *.log
 /.idea/*
+*.md
+.claude/
+.mcp.json
