@@ -1,43 +1,65 @@
 package com.msa.neontd.game
 
 import android.util.Log
+import com.msa.neontd.config.RenderConfig
 import com.msa.neontd.engine.core.GameStateManager
 import com.msa.neontd.engine.ecs.Entity
 import com.msa.neontd.engine.ecs.World
 import com.msa.neontd.engine.graphics.Camera
+import com.msa.neontd.engine.graphics.ShapeType
 import com.msa.neontd.engine.graphics.SpriteBatch
 import com.msa.neontd.engine.input.InputManager
 import com.msa.neontd.engine.input.TouchEvent
 import com.msa.neontd.engine.input.TouchType
 import com.msa.neontd.engine.resources.Texture
 import com.msa.neontd.engine.shaders.ShaderProgram
+import com.msa.neontd.engine.vfx.VFXManager
 import com.msa.neontd.game.abilities.AbilityEffects
 import com.msa.neontd.game.abilities.AbilityUIData
 import com.msa.neontd.game.abilities.TowerAbility
-import com.msa.neontd.game.abilities.TowerAbilityComponent
 import com.msa.neontd.game.abilities.TowerAbilitySystem
-import com.msa.neontd.game.heroes.HeroModifiers
-import com.msa.neontd.game.heroes.HeroAbilityEffect
-import com.msa.neontd.game.prestige.PrestigeModifiers
-import com.msa.neontd.game.synergies.TowerSynergySystem
+import com.msa.neontd.game.challenges.ChallengeModifiers
+import com.msa.neontd.game.components.HealthComponent
+import com.msa.neontd.game.components.ModelComponent
 import com.msa.neontd.game.components.SpriteComponent
 import com.msa.neontd.game.components.TransformComponent
-import com.msa.neontd.game.components.HealthComponent
-import com.msa.neontd.game.entities.*
-import com.msa.neontd.game.systems.*
-import com.msa.neontd.game.wave.WaveManager
-import com.msa.neontd.game.wave.WaveState
+import com.msa.neontd.game.entities.AuraEffect
+import com.msa.neontd.game.entities.AuraTowerComponent
+import com.msa.neontd.game.entities.DamageType
+import com.msa.neontd.game.entities.DotEffect
+import com.msa.neontd.game.entities.EnemyComponent
+import com.msa.neontd.game.entities.EnemyFactory
+import com.msa.neontd.game.entities.EnemyType
+import com.msa.neontd.game.entities.ProjectileFactory
+import com.msa.neontd.game.entities.StatusEffectsComponent
+import com.msa.neontd.game.entities.TargetingMode
+import com.msa.neontd.game.entities.TowerComponent
+import com.msa.neontd.game.entities.TowerDefinitions
+import com.msa.neontd.game.entities.TowerFactory
+import com.msa.neontd.game.entities.TowerSelectionComponent
+import com.msa.neontd.game.entities.TowerStatsComponent
+import com.msa.neontd.game.entities.TowerTargetingComponent
+import com.msa.neontd.game.entities.TowerType
+import com.msa.neontd.game.entities.TowerUpgradeComponent
+import com.msa.neontd.game.entities.TowerUpgradeData
+import com.msa.neontd.game.entities.UpgradeableStat
+import com.msa.neontd.game.heroes.HeroAbilityEffect
+import com.msa.neontd.game.heroes.HeroModifiers
 import com.msa.neontd.game.level.LevelDefinition
 import com.msa.neontd.game.level.LevelMaps
+import com.msa.neontd.game.prestige.PrestigeModifiers
+import com.msa.neontd.game.synergies.TowerSynergySystem
+import com.msa.neontd.game.systems.EnemyMovementSystem
+import com.msa.neontd.game.systems.LifetimeSystem
+import com.msa.neontd.game.systems.ProjectileSystem
+import com.msa.neontd.game.systems.TowerAttackSystem
+import com.msa.neontd.game.systems.TowerTargetingSystem
 import com.msa.neontd.game.wave.WaveDefinition
+import com.msa.neontd.game.wave.WaveManager
+import com.msa.neontd.game.wave.WaveState
 import com.msa.neontd.game.world.CellType
 import com.msa.neontd.game.world.GridMap
 import com.msa.neontd.game.world.PathManager
-import com.msa.neontd.engine.vfx.VFXManager
-import com.msa.neontd.engine.graphics.ShapeType
-import com.msa.neontd.game.challenges.ChallengeModifiers
-import com.msa.neontd.game.components.ModelComponent
-import com.msa.neontd.config.RenderConfig
 import com.msa.neontd.util.Color
 import com.msa.neontd.util.Vector2
 import kotlin.math.PI
@@ -986,8 +1008,8 @@ class GameWorld(
                 if (selection.isUpgradePanelActive) {
                     // Get sprite component for tower dimensions
                     val sprite = world.getComponent<SpriteComponent>(entity)
-                    val towerWidth = sprite?.width ?: gridMap.cellSize * 0.7f
-                    val towerHeight = sprite?.height ?: gridMap.cellSize * 0.7f
+                    val towerWidth = sprite?.width ?: (gridMap.cellSize * 0.7f)
+                    val towerHeight = sprite?.height ?: (gridMap.cellSize * 0.7f)
 
                     // Render pulsing tower outline
                     renderTowerSelectionOutline(
@@ -1351,7 +1373,7 @@ class GameWorld(
             val width: Float, val height: Float,
             val color: Color, val glow: Float,
             val layer: Int,
-            val shapeType: com.msa.neontd.engine.graphics.ShapeType
+            val shapeType: ShapeType
         )
 
         data class HealthBarData(
@@ -1641,7 +1663,7 @@ class GameWorld(
             // Draw fill approximation
             val midX = (cx + x1 + x2) / 3f
             val midY = (cy + y1 + y2) / 3f
-            val fillSize = kotlin.math.sqrt(((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1)).toDouble()).toFloat() * 0.4f
+            val fillSize = sqrt(((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1)).toDouble()).toFloat() * 0.4f
             if (fillSize > 1f) {
                 spriteBatch.draw(whiteTexture, midX - fillSize/2, midY - fillSize/2, fillSize, fillSize, fillColor, glow * 0.3f)
             }
@@ -1672,7 +1694,7 @@ class GameWorld(
     ) {
         val dx = x2 - x1
         val dy = y2 - y1
-        val length = kotlin.math.sqrt(dx * dx + dy * dy).toFloat()
+        val length = sqrt(dx * dx + dy * dy).toFloat()
         if (length < 0.5f) return
 
         // Draw as series of small squares along the line
