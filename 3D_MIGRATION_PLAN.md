@@ -17,7 +17,7 @@
 | **Phase 0**: Foundation | ✅ COMPLETE | Dec 2024 |
 | **Phase 1**: Hybrid Rendering | ✅ COMPLETE | Dec 2024 |
 | **Phase 2**: Camera Transition | ✅ COMPLETE | Dec 28, 2024 |
-| **Phase 3**: Full 3D | 🔲 PENDING | - |
+| **Phase 3**: Full 3D | 🟡 IN PROGRESS | Dec 29, 2024 |
 | **Polish & Optimization** | 🔲 PENDING | - |
 
 ### Phase 0-2 Completed Features:
@@ -25,20 +25,31 @@
 - ✅ RenderConfig feature flags for gradual migration
 - ✅ Complete graphics3d package (Model, Mesh, Material, GLTFLoader, ModelCache, ModelBatch)
 - ✅ Model shaders with lighting support
-- ✅ GLB models for all 14 tower types (3 LOD levels each)
+- ✅ GLB models for all 14 tower types (3 LOD levels each = 42 models)
 - ✅ GLB models for all 16 enemy types
+- ✅ GLB models for environment tiles (buildable, path, spawn, exit, blocked)
 - ✅ ModelComponent integration in TowerFactory and EnemyFactory
 - ✅ Isometric camera (35° elevation, 45° azimuth)
 - ✅ Screen-to-world coordinate transformation for touch input
-- ✅ Y-up to Z-up model rotation
+- ✅ Y-up to Z-up model rotation (+90° around X axis)
 - ✅ Automatic model centering using bounding sphere
 - ✅ 2D content transformation through isometric projection matrix
 
-### Next Steps (Phase 3):
-- 3D projectiles with proper trajectories
-- 3D map tiles (optional - current 2D tiles work well)
-- Enhanced lighting system
-- Performance optimization and LOD tuning
+### Phase 3 Progress (3D Projectiles & Polish):
+- ✅ ProjectileMeshFactory with procedural meshes (bullet, missile, beam, energy ball)
+- ✅ ProjectileFactory updated to add ModelComponent when use3DProjectiles=true
+- ✅ ProjectileComponent extended with projectileType field
+- ✅ GLRenderer.render3DProjectiles() with direction-based rotation
+- ✅ use3DProjectiles = true enabled in RenderConfig
+- ✅ LightingSystem with directional + point lights, neon preset
+- ✅ PerformanceMonitor with FPS tracking and auto-fallback
+- ✅ Auto-fallback system (disables 3D features progressively on low FPS)
+
+### Remaining Tasks (Optional Polish):
+- 🔲 3D map tiles (optional - current 2D tiles work well)
+- 🔲 3D particles (use3DParticles = false)
+- 🔲 Device testing on budget phones
+- 🔲 LOD tuning based on performance data
 
 ---
 
@@ -1014,7 +1025,8 @@ uv --version
 
 **Step 2: Install Blender (4.0+)**
 ```bash
-brew install --cask blender
+brew install --cask 
+
 ```
 
 **Step 3: Install Blender MCP Addon**

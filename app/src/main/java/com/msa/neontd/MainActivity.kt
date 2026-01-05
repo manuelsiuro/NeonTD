@@ -10,64 +10,40 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.msa.neontd.engine.audio.AudioEventHandler
 import com.msa.neontd.engine.audio.AudioManager
 import com.msa.neontd.engine.audio.MusicType
 import com.msa.neontd.engine.graphics.GLRenderer
+import com.msa.neontd.game.achievements.TowerSkinsRepository
 import com.msa.neontd.game.editor.CustomLevelData
 import com.msa.neontd.game.editor.CustomLevelRepository
+import com.msa.neontd.game.heroes.HeroRepository
 import com.msa.neontd.game.level.ProgressionRepository
+import com.msa.neontd.game.prestige.PrestigeRepository
 import com.msa.neontd.sharing.QRCodeGenerator
 import com.msa.neontd.sharing.ShareManager
-import com.msa.neontd.game.challenges.ChallengeConfig
 import com.msa.neontd.ui.EncyclopediaScreen
+import com.msa.neontd.ui.HeroSelectionScreen
 import com.msa.neontd.ui.LevelSelectionScreen
 import com.msa.neontd.ui.achievements.AchievementsScreen
 import com.msa.neontd.ui.challenges.ChallengesScreen
 import com.msa.neontd.ui.editor.LevelEditorHubScreen
 import com.msa.neontd.ui.editor.LevelEditorScreen
+import com.msa.neontd.ui.menu.MainMenuScreen
+import com.msa.neontd.ui.prestige.PrestigeScreen
 import com.msa.neontd.ui.screens.SettingsScreen
 import com.msa.neontd.ui.sharing.LevelImportPreviewScreen
 import com.msa.neontd.ui.sharing.ShareLevelScreen
 import com.msa.neontd.ui.skins.TowerSkinsScreen
 import com.msa.neontd.ui.theme.NeonTDTheme
-import com.msa.neontd.ui.HeroSelectionScreen
-import com.msa.neontd.ui.prestige.PrestigeScreen
-import com.msa.neontd.ui.menu.MainMenuScreen
-import com.msa.neontd.game.achievements.TowerSkinsRepository
-import com.msa.neontd.game.heroes.HeroRepository
-import com.msa.neontd.game.prestige.PrestigeRepository
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-// Neon color palette
-private val NeonBackground = Color(0xFF0A0A12)
-private val NeonCyan = Color(0xFF00FFFF)
-private val NeonMagenta = Color(0xFFFF00FF)
-private val NeonGreen = Color(0xFF00FF00)
 
 /**
  * Navigation states for the main menu flow.
@@ -91,18 +67,19 @@ private enum class MainMenuNavigation {
 
 class MainActivity : ComponentActivity() {
 
-    companion object {
-        /**
-         * Developer mode flag.
-         * When true, all levels are shown as unlocked regardless of progression.
-         * Toggle this for testing - should be false in production builds.
-         */
-        const val DEV_MODE_ENABLED = true
-    }
-
     private lateinit var progressionRepository: ProgressionRepository
     private lateinit var heroRepository: HeroRepository
     private lateinit var prestigeRepository: PrestigeRepository
+
+    /**
+     * Check if developer mode is enabled.
+     * Only returns true in DEBUG builds when the setting is enabled.
+     */
+    private fun isDevModeEnabled(): Boolean {
+        if (!BuildConfig.DEBUG) return false
+        val prefs = getSharedPreferences("neontd_graphics", MODE_PRIVATE)
+        return prefs.getBoolean("dev_mode_enabled", false)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -127,8 +104,8 @@ class MainActivity : ComponentActivity() {
         // Initialize prestige repository
         prestigeRepository = PrestigeRepository(this)
 
-        // DEV MODE: Optionally unlock all levels on launch
-        if (DEV_MODE_ENABLED) {
+        // DEV MODE: Optionally unlock all levels on launch (DEBUG builds only)
+        if (isDevModeEnabled()) {
             progressionRepository.unlockAllLevels()
         }
 
@@ -138,7 +115,7 @@ class MainActivity : ComponentActivity() {
                 var progression by remember { mutableStateOf(progressionRepository.loadProgression()) }
                 var heroData by remember { mutableStateOf(heroRepository.loadData()) }
                 var prestigeData by remember { mutableStateOf(prestigeRepository.loadData()) }
-                var selectedLevelId by remember { mutableStateOf(1) }
+                var selectedLevelId by remember { mutableIntStateOf(1) }
                 var editingLevel by remember { mutableStateOf<CustomLevelData?>(null) }
                 var sharingLevel by remember { mutableStateOf<CustomLevelData?>(null) }
                 var importingLevel by remember { mutableStateOf<CustomLevelData?>(null) }
@@ -217,7 +194,7 @@ class MainActivity : ComponentActivity() {
                         }
                         LevelSelectionScreen(
                             progression = progression,
-                            devModeEnabled = DEV_MODE_ENABLED,
+                            devModeEnabled = isDevModeEnabled(),
                             onLevelSelected = { levelId ->
                                 // Go to hero selection before starting game
                                 selectedLevelId = levelId

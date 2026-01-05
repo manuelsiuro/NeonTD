@@ -29,6 +29,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.edit
+import com.msa.neontd.BuildConfig
 import com.msa.neontd.engine.audio.AudioEventHandler
 import com.msa.neontd.engine.audio.AudioManager
 import com.msa.neontd.engine.graphics.GLRenderer
@@ -38,6 +40,7 @@ import com.msa.neontd.ui.theme.NeonScaffold
 
 private const val PREFS_NAME = "neontd_graphics"
 private const val KEY_SHADERS_ENABLED = "shaders_enabled"
+private const val KEY_DEV_MODE_ENABLED = "dev_mode_enabled"
 
 /**
  * Settings screen for managing game audio and visual settings.
@@ -53,6 +56,11 @@ fun SettingsScreen(
     val graphicsPrefs = remember { context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) }
     var shadersEnabled by remember {
         mutableStateOf(graphicsPrefs.getBoolean(KEY_SHADERS_ENABLED, true))
+    }
+
+    // Developer mode setting (DEBUG builds only)
+    var devModeEnabled by remember {
+        mutableStateOf(graphicsPrefs.getBoolean(KEY_DEV_MODE_ENABLED, false))
     }
 
     // Audio settings from AudioManager (inverted because AudioManager uses "muted")
@@ -119,11 +127,34 @@ fun SettingsScreen(
                 onCheckedChange = { enabled ->
                     shadersEnabled = enabled
                     GLRenderer.shadersEnabled = enabled
-                    graphicsPrefs.edit().putBoolean(KEY_SHADERS_ENABLED, enabled).apply()
+                    graphicsPrefs.edit { putBoolean(KEY_SHADERS_ENABLED, enabled) }
                     AudioEventHandler.onButtonClick()
                 },
                 accentColor = NeonColors.Amber
             )
+
+            // Developer Mode Toggle - DEBUG builds only
+            if (BuildConfig.DEBUG) {
+                Spacer(modifier = Modifier.height(16.dp))
+
+                SettingsToggleRow(
+                    label = "Developer Mode",
+                    checked = devModeEnabled,
+                    onCheckedChange = { enabled ->
+                        devModeEnabled = enabled
+                        graphicsPrefs.edit { putBoolean(KEY_DEV_MODE_ENABLED, enabled) }
+                        AudioEventHandler.onButtonClick()
+                    },
+                    accentColor = NeonColors.Red
+                )
+
+                Text(
+                    text = "⚠️ Unlocks all levels (testing only)",
+                    fontSize = 12.sp,
+                    color = NeonColors.Red.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(start = 4.dp, top = 4.dp)
+                )
+            }
 
             Spacer(modifier = Modifier.height(32.dp))
 
